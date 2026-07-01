@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useRef, useState } from "react";
 import { WavRecorder } from "@/lib/audio/wav-recorder";
+import BottomNav from "@/components/BottomNav";
 
 const CATEGORIES = [
   { value: "MATERIALS", label: "Материалы" },
@@ -198,7 +199,7 @@ export default function RecordPage() {
   }
 
   return (
-    <main className="mx-auto max-w-3xl space-y-6 p-6">
+    <main className="mx-auto max-w-3xl space-y-6 p-6 pb-24 sm:pb-6">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-semibold text-gray-900">Новая смета</h1>
         <Link href="/admin" className="text-sm text-gray-500 hover:text-gray-900">
@@ -406,6 +407,7 @@ export default function RecordPage() {
           </section>
         </div>
       )}
+      <BottomNav />
     </main>
   );
 }

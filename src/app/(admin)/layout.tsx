@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { auth, signOut } from "@/auth";
+import BottomNav from "@/components/BottomNav";
 
 export default async function AdminLayout({
   children,
@@ -18,13 +19,14 @@ export default async function AdminLayout({
             <Link href="/admin" className="font-semibold text-gray-900">
               IQ SMETA
             </Link>
-            <Link href="/admin/price" className="text-gray-600 hover:text-gray-900">
+            {/* верхние ссылки — только на десктопе; на мобиле они в нижнем таб-баре */}
+            <Link href="/admin/price" className="hidden text-gray-600 hover:text-gray-900 sm:inline">
               Прайс
             </Link>
-            <Link href="/admin/estimates" className="text-gray-600 hover:text-gray-900">
+            <Link href="/admin/estimates" className="hidden text-gray-600 hover:text-gray-900 sm:inline">
               Сметы
             </Link>
-            <Link href="/record" className="text-gray-600 hover:text-gray-900">
+            <Link href="/record" className="hidden text-gray-600 hover:text-gray-900 sm:inline">
               Запись
             </Link>
           </nav>
@@ -40,7 +42,8 @@ export default async function AdminLayout({
           </form>
         </div>
       </header>
-      <main className="mx-auto max-w-5xl px-4 py-6">{children}</main>
+      <main className="mx-auto max-w-5xl px-4 py-6 pb-24 sm:pb-6">{children}</main>
+      <BottomNav />
     </div>
   );
 }
