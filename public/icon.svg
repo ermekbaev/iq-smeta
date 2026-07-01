@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <rect width="512" height="512" rx="96" fill="#111111"/>
+  <text x="50%" y="50%" dy="0.07em" text-anchor="middle" dominant-baseline="middle"
+    font-family="Arial, sans-serif" font-size="190" font-weight="700" fill="#ffffff">IQ</text>
+  <text x="50%" y="76%" text-anchor="middle"
+    font-family="Arial, sans-serif" font-size="58" font-weight="500" fill="#9ca3af">СМЕТА</text>
+</svg>

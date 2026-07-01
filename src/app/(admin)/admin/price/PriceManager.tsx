@@ -1,0 +1,238 @@
+"use client";
+
+import { useEffect, useState, useTransition } from "react";
+
+// Дублируем список категорий локально, чтобы не тянуть @prisma/client в клиент.
+const CATEGORIES: { value: string; label: string }[] = [
+  { value: "MATERIALS", label: "Материалы" },
+  { value: "WORKS", label: "Работы" },
+  { value: "EQUIPMENT", label: "Оборудование" },
+  { value: "DELIVERY", label: "Доставка" },
+  { value: "OVERHEAD", label: "Издержки" },
+];
+const labelOf = (v: string) => CATEGORIES.find((c) => c.value === v)?.label ?? v;
+
+interface Item {
+  id: string;
+  name: string;
+  unit: string;
+  price: number;
+  category: string;
+}
+
+export default function PriceManager() {
+  const [items, setItems] = useState<Item[]>([]);
+  const [q, setQ] = useState("");
+  const [msg, setMsg] = useState<string | null>(null);
+  const [editing, setEditing] = useState<Item | null>(null);
+  const [, startTransition] = useTransition();
+  const [loading, setLoading] = useState(false);
+
+  async function load(query = "") {
+    setLoading(true);
+    const res = await fetch(`/api/admin/price?q=${encodeURIComponent(query)}`);
+    setItems(res.ok ? await res.json() : []);
+    setLoading(false);
+  }
+
+  useEffect(() => {
+    load();
+  }, []);
+
+  async function onUpload(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    const form = e.currentTarget;
+    const fd = new FormData(form);
+    setMsg("Загрузка…");
+    const res = await fetch("/api/admin/price/upload", {
+      method: "POST",
+      body: fd,
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      setMsg(`Ошибка: ${data.error ?? "не удалось"}`);
+      return;
+    }
+    setMsg(
+      `Готово: ${data.imported} позиций (новых ${data.created}, обновлено ${data.updated}, пропущено ${data.skipped}).`
+    );
+    form.reset();
+    startTransition(() => void load(q));
+  }
+
+  async function saveEdit() {
+    if (!editing) return;
+    const res = await fetch(`/api/admin/price/${editing.id}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        name: editing.name,
+        unit: editing.unit,
+        price: Number(editing.price),
+        category: editing.category,
+      }),
+    });
+    if (res.ok) {
+      setEditing(null);
+      void load(q);
+    } else {
+      setMsg("Не удалось сохранить позицию");
+    }
+  }
+
+  async function remove(id: string) {
+    if (!confirm("Удалить позицию?")) return;
+    const res = await fetch(`/api/admin/price/${id}`, { method: "DELETE" });
+    if (res.ok) void load(q);
+  }
+
+  return (
+    <div className="space-y-6">
+      <section className="rounded-xl border bg-white p-5">
+        <h2 className="mb-3 font-medium text-gray-900">Загрузить прайс (Excel/CSV)</h2>
+        <form onSubmit={onUpload} className="flex flex-wrap items-center gap-3">
+          <input
+            type="file"
+            name="file"
+            accept=".xlsx,.xls,.csv"
+            required
+            className="text-sm"
+          />
+          <button className="rounded bg-gray-900 px-4 py-2 text-sm font-medium text-white hover:bg-gray-700">
+            Загрузить
+          </button>
+        </form>
+        <p className="mt-2 text-xs text-gray-500">
+          Колонки: «наименование», «ед.», «цена», «категория». Повторная загрузка
+          обновляет цены по совпадению названия+единицы.
+        </p>
+        {msg && <p className="mt-2 text-sm text-gray-700">{msg}</p>}
+      </section>
+
+      <section className="rounded-xl border bg-white p-5">
+        <div className="mb-3 flex items-center justify-between gap-3">
+          <h2 className="font-medium text-gray-900">Позиции</h2>
+          <input
+            value={q}
+            onChange={(e) => {
+              setQ(e.target.value);
+              void load(e.target.value);
+            }}
+            placeholder="Поиск…"
+            className="rounded border border-gray-300 px-3 py-1.5 text-sm outline-none focus:border-gray-900"
+          />
+        </div>
+
+        {loading ? (
+          <p className="text-sm text-gray-500">Загрузка…</p>
+        ) : items.length === 0 ? (
+          <p className="text-sm text-gray-500">Пока пусто. Загрузите прайс выше.</p>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b text-left text-gray-500">
+                  <th className="py-2 pr-3">Наименование</th>
+                  <th className="py-2 pr-3">Ед.</th>
+                  <th className="py-2 pr-3">Цена</th>
+                  <th className="py-2 pr-3">Категория</th>
+                  <th className="py-2"></th>
+                </tr>
+              </thead>
+              <tbody>
+                {items.map((it) => (
+                  <tr key={it.id} className="border-b last:border-0">
+                    <td className="py-2 pr-3 text-gray-900">{it.name}</td>
+                    <td className="py-2 pr-3 text-gray-600">{it.unit}</td>
+                    <td className="py-2 pr-3 text-gray-900">{it.price.toFixed(2)}</td>
+                    <td className="py-2 pr-3 text-gray-600">{labelOf(it.category)}</td>
+                    <td className="py-2 text-right whitespace-nowrap">
+                      <button
+                        onClick={() => setEditing(it)}
+                        className="text-gray-500 hover:text-gray-900"
+                      >
+                        ред.
+                      </button>
+                      <button
+                        onClick={() => remove(it.id)}
+                        className="ml-3 text-red-400 hover:text-red-600"
+                      >
+                        удал.
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </section>
+
+      {editing && (
+        <div className="fixed inset-0 z-10 flex items-center justify-center bg-black/30 p-4">
+          <div className="w-full max-w-md space-y-3 rounded-xl bg-white p-5 shadow-lg">
+            <h3 className="font-medium text-gray-900">Редактировать позицию</h3>
+            <label className="block space-y-1">
+              <span className="text-xs text-gray-500">Наименование</span>
+              <input
+                value={editing.name}
+                onChange={(e) => setEditing({ ...editing, name: e.target.value })}
+                className="w-full rounded border border-gray-300 px-3 py-2 text-sm"
+              />
+            </label>
+            <div className="flex gap-3">
+              <label className="block flex-1 space-y-1">
+                <span className="text-xs text-gray-500">Ед.</span>
+                <input
+                  value={editing.unit}
+                  onChange={(e) => setEditing({ ...editing, unit: e.target.value })}
+                  className="w-full rounded border border-gray-300 px-3 py-2 text-sm"
+                />
+              </label>
+              <label className="block flex-1 space-y-1">
+                <span className="text-xs text-gray-500">Цена</span>
+                <input
+                  type="number"
+                  step="0.01"
+                  value={editing.price}
+                  onChange={(e) =>
+                    setEditing({ ...editing, price: Number(e.target.value) })
+                  }
+                  className="w-full rounded border border-gray-300 px-3 py-2 text-sm"
+                />
+              </label>
+            </div>
+            <label className="block space-y-1">
+              <span className="text-xs text-gray-500">Категория</span>
+              <select
+                value={editing.category}
+                onChange={(e) => setEditing({ ...editing, category: e.target.value })}
+                className="w-full rounded border border-gray-300 px-3 py-2 text-sm"
+              >
+                {CATEGORIES.map((c) => (
+                  <option key={c.value} value={c.value}>
+                    {c.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <div className="flex justify-end gap-2 pt-1">
+              <button
+                onClick={() => setEditing(null)}
+                className="rounded px-3 py-2 text-sm text-gray-600 hover:bg-gray-100"
+              >
+                Отмена
+              </button>
+              <button
+                onClick={saveEdit}
+                className="rounded bg-gray-900 px-4 py-2 text-sm font-medium text-white hover:bg-gray-700"
+              >
+                Сохранить
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}

@@ -1,0 +1,22 @@
+
+
+# Локальный PostgreSQL с pgvector для разработки.
+# Запуск: docker compose up -d
+# Строка подключения уже прописана в .env.example.
+services:
+  db:
+    image: pgvector/pgvector:pg16
+    container_name: iq-smeta-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: iqsmeta
+      POSTGRES_PASSWORD: iqsmeta
+      POSTGRES_DB: iqsmeta
+    # 5432 на хосте занят системным PostgreSQL — мапим на 5433
+    ports:
+      - "5433:5432"
+    volumes:
+      - iq_smeta_pgdata:/var/lib/postgresql/data
+
+volumes:
+  iq_smeta_pgdata:

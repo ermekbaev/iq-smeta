@@ -1,0 +1,37 @@
+import { NextResponse } from "next/server";
+import { z } from "zod";
+import { Category } from "@prisma/client";
+import { auth } from "@/auth";
+import { createEstimate } from "@/lib/estimate/service";
+
+export const runtime = "nodejs";
+
+const lineSchema = z.object({
+  spokenText: z.string().optional(),
+  priceItemId: z.string().nullable().optional(),
+  name: z.string().min(1),
+  qty: z.number().positive(),
+  unit: z.string().min(1),
+  price: z.number().nonnegative(),
+  category: z.nativeEnum(Category),
+});
+
+const schema = z.object({
+  title: z.string().min(1),
+  clientName: z.string().nullable().optional(),
+  lines: z.array(lineSchema).min(1),
+});
+
+// POST /api/estimate — сохранить собранную смету (+ зафиксировать aliases).
+export async function POST(req: Request) {
+  const session = await auth();
+  if (!session) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+
+  const parsed = schema.safeParse(await req.json());
+  if (!parsed.success) {
+    return NextResponse.json({ error: "Проверьте поля сметы" }, { status: 400 });
+  }
+
+  const { id } = await createEstimate(session.user.id, parsed.data);
+  return NextResponse.json({ ok: true, id });
+}
