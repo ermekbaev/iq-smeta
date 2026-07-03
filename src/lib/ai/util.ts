@@ -25,12 +25,21 @@ function isRateLimit(e: unknown): boolean {
   return /\b429\b|RESOURCE_EXHAUSTED|rate.?limit|quota/i.test(msg);
 }
 
-/** Ретраи с экспоненциальной задержкой на rate-limit/временные сбои. */
+// Провайдер подсказывает, сколько ждать («retry in 23s» / "retryDelay": "23s").
+function hintedDelayMs(e: unknown): number | null {
+  const msg = e instanceof Error ? e.message : String(e);
+  const m =
+    /retry in ([\d.]+)\s*s/i.exec(msg) || /retrydelay"?\s*:?\s*"?(\d+)\s*s/i.exec(msg);
+  if (!m) return null;
+  return Math.min(parseFloat(m[1]) * 1000 + 1000, 65000); // +1с запас, потолок 65с
+}
+
+/** Ретраи на rate-limit: ждём столько, сколько велит провайдер (иначе экспонента). */
 export async function withRetry<R>(
   fn: () => Promise<R>,
   opts: { retries?: number; baseDelayMs?: number } = {}
 ): Promise<R> {
-  const retries = opts.retries ?? 4;
+  const retries = opts.retries ?? 6;
   const base = opts.baseDelayMs ?? 800;
   let lastErr: unknown;
   for (let attempt = 0; attempt <= retries; attempt++) {
@@ -39,7 +48,7 @@ export async function withRetry<R>(
     } catch (e) {
       lastErr = e;
       if (attempt === retries || !isRateLimit(e)) throw e;
-      const delay = base * 2 ** attempt + Math.random() * 200;
+      const delay = hintedDelayMs(e) ?? base * 2 ** attempt + Math.random() * 200;
       await new Promise((r) => setTimeout(r, delay));
     }
   }

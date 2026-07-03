@@ -2,21 +2,13 @@
 
 import { useEffect, useState, useTransition } from "react";
 
-// Дублируем список категорий локально, чтобы не тянуть @prisma/client в клиент.
-const CATEGORIES: { value: string; label: string }[] = [
-  { value: "MATERIALS", label: "Материалы" },
-  { value: "WORKS", label: "Работы" },
-  { value: "EQUIPMENT", label: "Оборудование" },
-  { value: "DELIVERY", label: "Доставка" },
-  { value: "OVERHEAD", label: "Издержки" },
-];
-const labelOf = (v: string) => CATEGORIES.find((c) => c.value === v)?.label ?? v;
-
 interface Item {
   id: string;
+  article: string | null;
   name: string;
   unit: string;
-  price: number;
+  price: number; // РРЦ
+  cost: number | null; // ОПТ
   category: string;
 }
 
@@ -66,10 +58,12 @@ export default function PriceManager() {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
+        article: editing.article || null,
         name: editing.name,
         unit: editing.unit,
         price: Number(editing.price),
-        category: editing.category,
+        cost: editing.cost === null || editing.cost === undefined ? null : Number(editing.cost),
+        category: editing.category || "Прочее",
       }),
     });
     if (res.ok) {
@@ -132,20 +126,22 @@ export default function PriceManager() {
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b text-left text-gray-500">
+                  <th className="py-2 pr-3">Артикул</th>
                   <th className="py-2 pr-3">Наименование</th>
                   <th className="py-2 pr-3">Ед.</th>
-                  <th className="py-2 pr-3">Цена</th>
-                  <th className="py-2 pr-3">Категория</th>
+                  <th className="py-2 pr-3">Цена (РРЦ)</th>
+                  <th className="py-2 pr-3">Раздел</th>
                   <th className="py-2"></th>
                 </tr>
               </thead>
               <tbody>
                 {items.map((it) => (
                   <tr key={it.id} className="border-b last:border-0">
+                    <td className="py-2 pr-3 text-gray-500">{it.article ?? "—"}</td>
                     <td className="py-2 pr-3 text-gray-900">{it.name}</td>
                     <td className="py-2 pr-3 text-gray-600">{it.unit}</td>
                     <td className="py-2 pr-3 text-gray-900">{it.price.toFixed(2)}</td>
-                    <td className="py-2 pr-3 text-gray-600">{labelOf(it.category)}</td>
+                    <td className="py-2 pr-3 text-gray-600">{it.category}</td>
                     <td className="py-2 text-right whitespace-nowrap">
                       <button
                         onClick={() => setEditing(it)}
@@ -203,18 +199,13 @@ export default function PriceManager() {
               </label>
             </div>
             <label className="block space-y-1">
-              <span className="text-xs text-gray-500">Категория</span>
-              <select
+              <span className="text-xs text-gray-500">Раздел / категория</span>
+              <input
                 value={editing.category}
                 onChange={(e) => setEditing({ ...editing, category: e.target.value })}
+                placeholder="Прочее"
                 className="w-full rounded border border-gray-300 px-3 py-2 text-sm"
-              >
-                {CATEGORIES.map((c) => (
-                  <option key={c.value} value={c.value}>
-                    {c.label}
-                  </option>
-                ))}
-              </select>
+              />
             </label>
             <div className="flex justify-end gap-2 pt-1">
               <button

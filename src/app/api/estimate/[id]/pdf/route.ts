@@ -18,16 +18,19 @@ export async function GET(
   const { id } = await params;
   const estimate = await prisma.estimate.findUnique({
     where: { id },
-    include: { items: true },
+    include: { items: { include: { priceItem: { select: { article: true } } } } },
   });
   if (!estimate) return NextResponse.json({ error: "not found" }, { status: 404 });
+
+  // артикул берём из связанной позиции прайса (у ручных позиций его нет)
+  const items = estimate.items.map((it) => ({ ...it, article: it.priceItem?.article ?? null }));
 
   const html = estimateHtml({
     number: estimate.id.slice(-6).toUpperCase(),
     date: estimate.createdAt.toLocaleDateString("ru-RU"),
     title: estimate.title,
     clientName: estimate.clientName,
-    groups: groupByCategory(estimate.items),
+    groups: groupByCategory(items),
     total: Number(estimate.total),
   });
 

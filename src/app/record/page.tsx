@@ -6,14 +6,6 @@ import { useRef, useState } from "react";
 import { WavRecorder } from "@/lib/audio/wav-recorder";
 import BottomNav from "@/components/BottomNav";
 
-const CATEGORIES = [
-  { value: "MATERIALS", label: "Материалы" },
-  { value: "WORKS", label: "Работы" },
-  { value: "EQUIPMENT", label: "Оборудование" },
-  { value: "DELIVERY", label: "Доставка" },
-  { value: "OVERHEAD", label: "Издержки" },
-];
-
 interface Candidate {
   id: string;
   name: string;
@@ -127,7 +119,7 @@ export default function RecordPage() {
             unit: b?.unit ?? r.input.unit,
             price: b?.price ?? 0,
             priceItemId: b?.id ?? null,
-            category: b?.category ?? "MATERIALS",
+            category: b?.category ?? "Прочее",
             candidates: r.match.candidates,
             needsConfirm: r.match.needsConfirm,
           };
@@ -363,18 +355,13 @@ export default function RecordPage() {
                       />
                     </label>
                     <label className="space-y-1">
-                      <span className="text-[11px] text-gray-400">Категория</span>
-                      <select
+                      <span className="text-[11px] text-gray-400">Раздел / категория</span>
+                      <input
                         value={l.category}
                         onChange={(e) => update(i, { category: e.target.value })}
+                        placeholder="Прочее"
                         className="w-full rounded border border-gray-300 px-2 py-1.5 text-sm"
-                      >
-                        {CATEGORIES.map((c) => (
-                          <option key={c.value} value={c.value}>
-                            {c.label}
-                          </option>
-                        ))}
-                      </select>
+                      />
                     </label>
                   </div>
                 )}

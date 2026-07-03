@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { Category } from "@prisma/client";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { deleteEstimate, updateEstimate } from "@/lib/estimate/service";
@@ -13,7 +12,7 @@ const lineSchema = z.object({
   qty: z.number().positive(),
   unit: z.string().min(1),
   price: z.number().nonnegative(),
-  category: z.nativeEnum(Category),
+  category: z.string().min(1).default("Прочее"),
 });
 
 const updateSchema = z.object({

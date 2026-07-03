@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { Category } from "@prisma/client";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { ai } from "@/lib/ai";
@@ -9,10 +8,12 @@ import { setEmbedding } from "@/lib/match";
 export const runtime = "nodejs";
 
 const updateSchema = z.object({
+  article: z.string().nullable().optional(),
   name: z.string().min(1),
   unit: z.string().min(1),
   price: z.number().nonnegative(),
-  category: z.nativeEnum(Category),
+  cost: z.number().nonnegative().nullable().optional(),
+  category: z.string().min(1),
 });
 
 // PUT /api/admin/price/:id — редактировать позицию
@@ -31,15 +32,16 @@ export async function PUT(
 
   const before = await prisma.priceItem.findUnique({
     where: { id },
-    select: { name: true },
+    select: { name: true, article: true },
   });
   if (!before) return NextResponse.json({ error: "not found" }, { status: 404 });
 
   await prisma.priceItem.update({ where: { id }, data: parsed.data });
 
-  // название изменилось → пересчитать эмбеддинг
-  if (before.name !== parsed.data.name) {
-    await setEmbedding(id, await ai.embeddings.embed(parsed.data.name));
+  // название/артикул изменились → пересчитать эмбеддинг
+  if (before.name !== parsed.data.name || (before.article ?? null) !== (parsed.data.article ?? null)) {
+    const text = [parsed.data.article, parsed.data.name].filter(Boolean).join(" ");
+    await setEmbedding(id, await ai.embeddings.embed(text));
   }
   return NextResponse.json({ ok: true });
 }

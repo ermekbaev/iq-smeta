@@ -1,7 +1,7 @@
 // Сборка и сохранение сметы (PLAN этап 2).
 // Попутно фиксируем правки в aliases — простое «обучение» (PLAN 3.3).
 
-import { Category, Prisma } from "@prisma/client";
+import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { normalizeText } from "@/lib/match/fuzzy";
 
@@ -14,7 +14,8 @@ export interface DraftLine {
   qty: number;
   unit: string;
   price: number;
-  category: Category;
+  /** Раздел/группа (свободный текст, из прайса заказчика). */
+  category: string;
 }
 
 export interface CreateEstimateInput {
@@ -120,23 +121,8 @@ function round2(n: number): number {
   return Math.round((n + Number.EPSILON) * 100) / 100;
 }
 
-export const CATEGORY_LABELS: Record<Category, string> = {
-  MATERIALS: "Материалы",
-  WORKS: "Работы",
-  EQUIPMENT: "Оборудование",
-  DELIVERY: "Доставка",
-  OVERHEAD: "Издержки",
-};
-
-const CATEGORY_ORDER: Category[] = [
-  "MATERIALS",
-  "WORKS",
-  "EQUIPMENT",
-  "DELIVERY",
-  "OVERHEAD",
-];
-
 export interface EstimateLineView {
+  article: string | null;
   name: string;
   qty: number;
   unit: string;
@@ -145,27 +131,38 @@ export interface EstimateLineView {
 }
 
 export interface EstimateGroup {
-  category: Category;
+  category: string;
   label: string;
+  isWork: boolean; // раздел относится к работам (для раздельного ИТОГО)
   lines: EstimateLineView[];
   subtotal: number;
 }
 
-/** Группировка позиций сметы по категориям для отображения и PDF (PLAN 3.5). */
+/** Относится ли раздел к работам/услугам (для итога «Работы» отдельно от оборудования). */
+export function isWorkCategory(category: string): boolean {
+  return /работ|услуг|монтаж|доставк|накладн|земляны|транш|пусконаладк/i.test(category);
+}
+
+/**
+ * Группировка позиций сметы по категориям для отображения и PDF (PLAN 3.5).
+ * Категории — свободный текст (группы из прайса); порядок по первому появлению.
+ */
 export function groupByCategory(
   items: {
+    article?: string | null;
     name: string;
     qty: Prisma.Decimal | number;
     unit: string;
     price: Prisma.Decimal | number;
     sum: Prisma.Decimal | number;
-    category: Category;
+    category: string;
   }[]
 ): EstimateGroup[] {
-  const map = new Map<Category, EstimateLineView[]>();
+  const map = new Map<string, EstimateLineView[]>();
   for (const it of items) {
-    const cat = it.category;
+    const cat = it.category || "Прочее";
     const line: EstimateLineView = {
+      article: it.article ?? null,
       name: it.name,
       qty: Number(it.qty),
       unit: it.unit,
@@ -176,13 +173,12 @@ export function groupByCategory(
     arr.push(line);
     map.set(cat, arr);
   }
-  return CATEGORY_ORDER.filter((c) => map.has(c)).map((c) => {
-    const lines = map.get(c)!;
-    return {
-      category: c,
-      label: CATEGORY_LABELS[c],
-      lines,
-      subtotal: round2(lines.reduce((a, l) => a + l.sum, 0)),
-    };
-  });
+  // Map сохраняет порядок вставки → разделы идут как в прайсе
+  return Array.from(map.entries()).map(([category, lines]) => ({
+    category,
+    label: category,
+    isWork: isWorkCategory(category),
+    lines,
+    subtotal: round2(lines.reduce((a, l) => a + l.sum, 0)),
+  }));
 }

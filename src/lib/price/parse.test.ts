@@ -1,68 +1,60 @@
 import { describe, it, expect } from "vitest";
 import * as XLSX from "xlsx";
-import { Category } from "@prisma/client";
 import { parsePriceFile } from "./parse";
 
 const csv = (s: string) => Buffer.from(s, "utf8");
 
-// собирает реальный .xlsx-буфер из строк
-function xlsx(rows: (string | number)[][]): Buffer {
-  const ws = XLSX.utils.aoa_to_sheet(rows);
+// собирает реальный .xlsx-буфер из листов { name: rows[][] }
+function xlsx(sheets: Record<string, (string | number)[][]>): Buffer {
   const wb = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(wb, ws, "Прайс");
+  for (const [name, rows] of Object.entries(sheets)) {
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(rows), name);
+  }
   return XLSX.write(wb, { type: "buffer", bookType: "xlsx" }) as Buffer;
 }
 
-describe("parsePriceFile (CSV)", () => {
-  it("разбирает колонки и маппит категории", () => {
+describe("parsePriceFile — плоский CSV", () => {
+  it("разбирает колонки, категория из колонки", () => {
     const r = parsePriceFile(
       csv(
         "Наименование,Ед.,Цена,Категория\n" +
           "Цемент М500,мешок,450,Материалы\n" +
-          "Доставка,шт,3000,Доставка\n" +
-          "Кладка,м2,800,Работы\n"
+          "Доставка,шт,3000,Доставка\n"
       ),
       { csv: true }
     );
-    expect(r.rows).toHaveLength(3);
-    expect(r.skipped).toBe(0);
+    expect(r.rows).toHaveLength(2);
     expect(r.rows[0]).toMatchObject({
+      article: null,
       name: "Цемент М500",
       unit: "мешок",
       price: 450,
-      category: Category.MATERIALS,
+      cost: null,
+      category: "Материалы",
     });
-    expect(r.rows[1].category).toBe(Category.DELIVERY);
-    expect(r.rows[2].category).toBe(Category.WORKS);
+    expect(r.rows[1].category).toBe("Доставка");
   });
 
-  it("пропускает строки с данными, но без наименования или цены", () => {
-    // строки не полностью пустые (иначе их отбросит парсер xlsx до подсчёта)
+  it("пропускает строки без наименования или цены (плоский режим)", () => {
     const r = parsePriceFile(
       csv(
         "Наименование,Ед.,Цена,Категория\n" +
           "Цемент,шт,450,Материалы\n" +
-          ",кг,,Материалы\n" + // нет имени и цены
-          "Брак,шт,,Работы\n" // нет цены
+          ",кг,,Материалы\n" + // нет имени — не считается
+          "Брак,шт,,Работы\n" // нет цены — skipped
       ),
       { csv: true }
     );
     expect(r.rows).toHaveLength(1);
-    expect(r.skipped).toBe(2);
+    expect(r.skipped).toBe(1);
   });
 
-  it("понимает синонимы заголовков и чистит цену", () => {
-    const r = parsePriceFile(
-      csv("Название,Единица,Стоимость\nПесок,м3,1 200 руб\n"),
-      { csv: true }
-    );
+  it("синонимы заголовков и чистка цены; без колонки категории → Прочее", () => {
+    const r = parsePriceFile(csv("Название,Единица,Стоимость\nПесок,м3,1 200 руб\n"), {
+      csv: true,
+    });
     expect(r.rows[0]).toMatchObject({ name: "Песок", unit: "м3", price: 1200 });
-  });
-
-  it("неизвестная категория → Материалы по умолчанию", () => {
-    const r = parsePriceFile(csv("Наименование,Цена\nГвозди,100\n"), { csv: true });
-    expect(r.rows[0].category).toBe(Category.MATERIALS);
-    expect(r.rows[0].unit).toBe("шт");
+    expect(r.rows[0].category).toBe("Прочее");
   });
 
   it("без колонок имени/цены → пусто", () => {
@@ -71,32 +63,45 @@ describe("parsePriceFile (CSV)", () => {
   });
 });
 
-describe("parsePriceFile (XLSX)", () => {
-  it("разбирает настоящий Excel-файл", () => {
-    const buf = xlsx([
-      ["Наименование", "Ед.", "Цена", "Категория"],
-      ["Цемент М500", "мешок", 460, "Материалы"],
-      ["Доставка самосвалом", "шт", 3200, "Доставка"],
-      ["Кладка кирпича", "м2", 1900, "Работы"],
-    ]);
-    const r = parsePriceFile(buf); // csv:false (по умолчанию)
-    expect(r.rows).toHaveLength(3);
-    expect(r.rows[0]).toMatchObject({
-      name: "Цемент М500",
-      unit: "мешок",
-      price: 460,
-      category: Category.MATERIALS,
+describe("parsePriceFile — реальный формат (XLSX)", () => {
+  it("заголовок не в 1-й строке, строки-разделы → категории, РРЦ+ОПТ, артикул", () => {
+    const buf = xlsx({
+      "Прайс": [
+        ["ООО IQ", "", "", "", "", ""], // реквизиты сверху
+        ["", "", "", "", "", ""],
+        ["Артикул", "Наименование", "Ед.изм.", "РРЦ, ₽", "Оптовая скидка", "Оптовая цена, ₽"],
+        ["", "Светильники", "", "", "", ""], // раздел
+        ["CALLA", "SGL CALLA Светильник", "шт", 4980, 0.25, 3735],
+        ["CALLA-02", "SGL CALLA-02", "шт", 7930, 0.25, 5947.5],
+        ["", "Кабель", "", "", "", ""], // раздел
+        ["KAB-3x2.5", "Кабель ВВГ 3x2.5", "м", 120, 0.25, 90],
+      ],
+      // лист-смета (есть «Кол-во») — должен пропуститься
+      "Смета": [
+        ["", "Артикул", "Наименование", "Кол-во", "Ед.изм.", "Цена", "Сумма"],
+        ["", "CALLA", "SGL CALLA", 1, "шт", 4980, 4980],
+      ],
     });
-    expect(r.rows[1].category).toBe(Category.DELIVERY);
-    expect(r.rows[2].category).toBe(Category.WORKS);
-  });
 
-  it("числовая цена из Excel-ячейки сохраняется", () => {
-    const buf = xlsx([
-      ["Название", "Единица", "Стоимость"],
-      ["Песок", "м3", 1150.5],
-    ]);
     const r = parsePriceFile(buf);
-    expect(r.rows[0].price).toBe(1150.5);
+    expect(r.sheets).toEqual(["Прайс"]); // смета пропущена
+    expect(r.rows).toHaveLength(3);
+
+    expect(r.rows[0]).toMatchObject({
+      article: "CALLA",
+      name: "SGL CALLA Светильник",
+      unit: "шт",
+      price: 4980, // РРЦ
+      cost: 3735, // ОПТ (не «оптовая скидка»)
+      category: "Светильники",
+    });
+    expect(r.rows[1].category).toBe("Светильники");
+    expect(r.rows[2]).toMatchObject({
+      article: "KAB-3x2.5",
+      category: "Кабель",
+      price: 120,
+      cost: 90,
+      unit: "м",
+    });
   });
 });

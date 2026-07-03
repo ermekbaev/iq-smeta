@@ -9,8 +9,10 @@ import { AsrProvider, EmbeddingsProvider, LlmProvider, ExtractedItem } from "./t
 import { EXTRACT_SYSTEM_PROMPT, parseExtraction } from "./prompt";
 import { chunk, withRetry } from "./util";
 
-// Размер пачки для batchEmbedContents (с запасом под лимиты запроса).
-const EMB_BATCH = 100;
+// Размер пачки для batchEmbedContents. На free-tier Gemini лимит эмбеддингов —
+// 100 запросов/мин, а каждый элемент батча считается запросом; берём 90 с запасом.
+// Между батчами withRetry ждёт столько, сколько велит 429 (на платном 429 не будет).
+const EMB_BATCH = 90;
 
 export const GEMINI_EMBEDDING_DIM = 768;
 

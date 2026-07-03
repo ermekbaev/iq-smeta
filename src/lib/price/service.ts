@@ -15,7 +15,7 @@ export interface ImportResult {
 export async function importPrice(rows: ParsedRow[]): Promise<ImportResult> {
   let created = 0;
   let updated = 0;
-  const saved: { id: string; name: string }[] = [];
+  const saved: { id: string; text: string }[] = [];
 
   // 1) upsert позиций
   for (const row of rows) {
@@ -25,18 +25,31 @@ export async function importPrice(rows: ParsedRow[]): Promise<ImportResult> {
     });
     const item = await prisma.priceItem.upsert({
       where: { name_unit: { name: row.name, unit: row.unit } },
-      create: { name: row.name, unit: row.unit, price: row.price, category: row.category },
-      update: { price: row.price, category: row.category },
+      create: {
+        article: row.article,
+        name: row.name,
+        unit: row.unit,
+        price: row.price,
+        cost: row.cost,
+        category: row.category,
+      },
+      update: {
+        article: row.article,
+        price: row.price,
+        cost: row.cost,
+        category: row.category,
+      },
       select: { id: true },
     });
     if (existing) updated++;
     else created++;
-    saved.push({ id: item.id, name: row.name });
+    // эмбеддинг по «артикул + название» — чтобы работал и поиск по коду
+    saved.push({ id: item.id, text: [row.article, row.name].filter(Boolean).join(" ") });
   }
 
   // 2) эмбеддинги пачкой (PLAN 3.2): один батч-запрос вместо N одиночных —
   // выдерживает большой прайс без упора в rate-limit (PLAN 8).
-  const vectors = await ai.embeddings.embedBatch(saved.map((s) => s.name));
+  const vectors = await ai.embeddings.embedBatch(saved.map((s) => s.text));
   for (let i = 0; i < saved.length; i++) {
     await setEmbedding(saved[i].id, vectors[i]);
   }

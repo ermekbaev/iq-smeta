@@ -3,14 +3,6 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 
-const CATEGORIES = [
-  { value: "MATERIALS", label: "Материалы" },
-  { value: "WORKS", label: "Работы" },
-  { value: "EQUIPMENT", label: "Оборудование" },
-  { value: "DELIVERY", label: "Доставка" },
-  { value: "OVERHEAD", label: "Издержки" },
-];
-
 export interface EditLine {
   priceItemId: string | null;
   name: string;
@@ -48,7 +40,7 @@ export default function EstimateEditor({
   const addLine = () =>
     setLines((ls) => [
       ...ls,
-      { priceItemId: null, name: "", qty: 1, unit: "шт", price: 0, category: "MATERIALS" },
+      { priceItemId: null, name: "", qty: 1, unit: "шт", price: 0, category: "Прочее" },
     ]);
 
   async function save() {
@@ -124,18 +116,13 @@ export default function EstimateEditor({
               />
             </label>
             <label className="space-y-1">
-              {i === 0 && <span className="text-[11px] text-gray-400">Категория</span>}
-              <select
+              {i === 0 && <span className="text-[11px] text-gray-400">Раздел</span>}
+              <input
                 value={l.category}
                 onChange={(e) => update(i, { category: e.target.value })}
+                placeholder="Прочее"
                 className="w-full rounded border border-gray-300 px-2 py-1.5 text-sm"
-              >
-                {CATEGORIES.map((c) => (
-                  <option key={c.value} value={c.value}>
-                    {c.label}
-                  </option>
-                ))}
-              </select>
+              />
             </label>
             <label className="space-y-1">
               {i === 0 && <span className="text-[11px] text-gray-400">Кол-во</span>}
