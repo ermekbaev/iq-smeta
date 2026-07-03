@@ -111,7 +111,7 @@ export default function RecordPage() {
 
       const draft: Line[] = mtData.results.map(
         (r: { input: { name: string; qty: number; unit: string }; match: { best: Candidate | null; candidates: Candidate[]; needsConfirm: boolean } }) => {
-          const b = r.match.best;
+          const b = r.match.needsConfirm ? null : r.match.best;
           return {
             spokenText: r.input.name,
             name: b?.name ?? r.input.name,

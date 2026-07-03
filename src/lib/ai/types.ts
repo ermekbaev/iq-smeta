@@ -3,12 +3,12 @@
 
 // Размерность вектора в БД. ДОЛЖНА совпадать с vector(N) в schema.prisma.
 // Зависит от ВЫБРАННОГО провайдера эмбеддингов (у каждого своя):
-//   Gemini text-embedding-004 — 768 (текущий dev)
-//   GigaChat Embeddings        — 1024 (прод-вариант)
-//   YandexGPT textEmbedding     — 256
+//   YandexGPT textEmbedding     — 256 (текущий прод)
+//   Gemini text-embedding-004   — 768
+//   GigaChat Embeddings         — 1024
 // Сменить провайдера = поменять это число + vector(N) в схеме + миграция
 // (guard в ./index.ts сверяет dimension активного провайдера с этим значением).
-export const EMBEDDING_DIM = 768;
+export const EMBEDDING_DIM = 256;
 
 export interface AsrProvider {
   /** Аудио (webm/ogg/wav) → распознанный текст. */
