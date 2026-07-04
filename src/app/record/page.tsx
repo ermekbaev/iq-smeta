@@ -75,23 +75,28 @@ export default function RecordPage() {
     try {
       const res = await fetch("/api/asr", { method: "POST", body: fd });
       const data = await res.json();
-      setBusy(null);
-      if (!res.ok) return setError(data.error ?? "Не удалось распознать речь.");
+      if (!res.ok) {
+        setBusy(null);
+        return setError(data.error ?? "Не удалось распознать речь.");
+      }
       setText(data.text);
+      // сразу собираем смету из распознанного (голос → черновик без лишнего шага)
+      await buildDraft(data.text);
     } catch {
       setBusy(null);
       setError("Сеть недоступна. Расшифровка требует подключения.");
     }
   }
 
-  async function buildDraft() {
+  async function buildDraft(sourceText: string = text) {
+    if (!sourceText.trim()) return;
     setError(null);
     setBusy("Извлекаю позиции…");
     try {
       const ex = await fetch("/api/extract", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ text }),
+        body: JSON.stringify({ text: sourceText }),
       });
       const exData = await ex.json();
       if (!ex.ok) {
@@ -242,7 +247,7 @@ export default function RecordPage() {
               className="w-full rounded border border-gray-200 px-3 py-2 text-gray-900 outline-none focus:border-gray-900"
             />
             <button
-              onClick={buildDraft}
+              onClick={() => buildDraft()}
               disabled={!text.trim() || !!busy}
               className="rounded bg-gray-900 px-4 py-2 text-sm font-medium text-white hover:bg-gray-700 disabled:opacity-50"
             >
