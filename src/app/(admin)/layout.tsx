@@ -31,13 +31,14 @@ export default async function AdminLayout({
             </Link>
           </nav>
           <form
+            className="shrink-0"
             action={async () => {
               "use server";
               await signOut({ redirectTo: "/login" });
             }}
           >
             <button className="text-sm text-gray-500 hover:text-gray-900">
-              Выйти ({session.user?.email})
+              Выйти <span className="hidden sm:inline">({session.user?.email})</span>
             </button>
           </form>
         </div>

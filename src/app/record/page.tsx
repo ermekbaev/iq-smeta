@@ -320,7 +320,7 @@ export default function RecordPage() {
                   </select>
                 </label>
                 <div className="mt-2 grid items-end gap-2 grid-cols-[1fr_1fr_1fr_auto]">
-                  <label className="space-y-1">
+                  <label className="min-w-0 space-y-1">
                     <span className="text-[11px] text-gray-400">Кол-во</span>
                     <input
                       type="number"
@@ -330,7 +330,7 @@ export default function RecordPage() {
                       className="w-full rounded border border-gray-300 px-2 py-1.5 text-sm"
                     />
                   </label>
-                  <label className="space-y-1">
+                  <label className="min-w-0 space-y-1">
                     <span className="text-[11px] text-gray-400">Ед.</span>
                     <input
                       value={l.unit}
@@ -338,7 +338,7 @@ export default function RecordPage() {
                       className="w-full rounded border border-gray-300 px-2 py-1.5 text-sm"
                     />
                   </label>
-                  <label className="space-y-1">
+                  <label className="min-w-0 space-y-1">
                     <span className="text-[11px] text-gray-400">Цена</span>
                     <input
                       type="number"
