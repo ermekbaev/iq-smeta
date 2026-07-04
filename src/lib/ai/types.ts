@@ -4,7 +4,7 @@
 // Размерность вектора в БД. ДОЛЖНА совпадать с vector(N) в schema.prisma.
 // Зависит от ВЫБРАННОГО провайдера эмбеддингов (у каждого своя):
 //   YandexGPT textEmbedding     — 256 (текущий прод)
-//   Gemini text-embedding-004   — 768
+//   Gemini Embedding            — настраивается через outputDimensionality
 //   GigaChat Embeddings         — 1024
 // Сменить провайдера = поменять это число + vector(N) в схеме + миграция
 // (guard в ./index.ts сверяет dimension активного провайдера с этим значением).

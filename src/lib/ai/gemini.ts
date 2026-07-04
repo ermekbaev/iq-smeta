@@ -3,9 +3,10 @@
 // Бесплатный tier, ключ из Google AI Studio (aistudio.google.com).
 //
 // На прод заменяется на российского провайдера (GigaChat/Яндекс) сменой env.
-// ВНИМАНИЕ: эмбеддинги text-embedding-004 — 768-мерные (см. EMBEDDING_DIM).
+// ВНИМАНИЕ: Gemini умеет отдавать укороченные MRL-эмбеддинги.
+// Запрашиваем размерность из EMBEDDING_DIM, чтобы совпадать с vector(N) в БД.
 
-import { AsrProvider, EmbeddingsProvider, LlmProvider, ExtractedItem } from "./types";
+import { AsrProvider, EmbeddingsProvider, LlmProvider, ExtractedItem, EMBEDDING_DIM } from "./types";
 import { EXTRACT_SYSTEM_PROMPT, parseExtraction } from "./prompt";
 import { chunk, withRetry } from "./util";
 
@@ -14,7 +15,7 @@ import { chunk, withRetry } from "./util";
 // Между батчами withRetry ждёт столько, сколько велит 429 (на платном 429 не будет).
 const EMB_BATCH = 90;
 
-export const GEMINI_EMBEDDING_DIM = 768;
+export const GEMINI_EMBEDDING_DIM = EMBEDDING_DIM;
 
 const BASE = "https://generativelanguage.googleapis.com/v1beta";
 const GEN_MODEL = process.env.GEMINI_MODEL || "gemini-flash-lite-latest";
@@ -69,7 +70,7 @@ export const geminiEmbeddings: EmbeddingsProvider = {
         body: JSON.stringify({
           model: `models/${EMB_MODEL}`,
           content: { parts: [{ text }] },
-          // фиксируем размерность под схему vector(768)
+          // фиксируем размерность под текущую схему vector(EMBEDDING_DIM)
           outputDimensionality: GEMINI_EMBEDDING_DIM,
         }),
       });
