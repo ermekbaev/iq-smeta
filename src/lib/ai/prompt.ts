@@ -5,12 +5,16 @@ import { normalizeUnit } from "@/lib/units";
 import { ExtractedItem } from "./types";
 
 export const EXTRACT_SYSTEM_PROMPT = `Ты помощник сметчика. Из текста, надиктованного прорабом, извлеки список позиций (материалы, работы, оборудование, доставка).
-Верни СТРОГО JSON-массив объектов вида {"name": string, "qty": number, "unit": string}, без пояснений и без markdown.
-- name — краткое наименование позиции (без количества и единицы)
+Верни СТРОГО JSON-массив объектов вида {"name": string, "qty": number, "unit": string, "price": number|null}, без пояснений и без markdown.
+- name — краткое наименование позиции (без количества, единицы и цены)
 - qty — количество числом (если не названо — 1)
 - unit — единица измерения как произнесена (мешок, куб, тонна, шт и т.п.)
-Пример: "10 мешков цемента М500, 3 куба песка и доставка самосвалом" →
-[{"name":"цемент М500","qty":10,"unit":"мешок"},{"name":"песок","qty":3,"unit":"куб"},{"name":"доставка самосвалом","qty":1,"unit":"шт"}]`;
+- price — ЦЕНА ЗА ЕДИНИЦУ в рублях, ТОЛЬКО если прораб явно назвал стоимость этой позиции голосом (например «монтаж узла двадцать тысяч», «по пятьсот рублей»). Число словами переведи в число. Если цена не названа — верни null (не придумывай).
+Примеры:
+"10 мешков цемента М500 и доставка самосвалом" →
+[{"name":"цемент М500","qty":10,"unit":"мешок","price":null},{"name":"доставка самосвалом","qty":1,"unit":"шт","price":null}]
+"выполнение нестандартных работ повышенной сложности двадцать тысяч, и десять форсунок по пятьсот рублей" →
+[{"name":"нестандартные работы повышенной сложности","qty":1,"unit":"шт","price":20000},{"name":"форсунка","qty":10,"unit":"шт","price":500}]`;
 
 /** Достаёт JSON-массив из ответа LLM (срезает markdown-обёртку, мусор по краям). */
 export function parseExtraction(content: string): ExtractedItem[] {
@@ -40,7 +44,10 @@ export function parseExtraction(content: string): ExtractedItem[] {
       const qtyNum = Number(o.qty);
       const qty = Number.isFinite(qtyNum) && qtyNum > 0 ? qtyNum : 1;
       const unit = normalizeUnit(String(o.unit ?? "шт"));
-      return { name, qty, unit };
+      // произнесённая цена (необязательно) — только положительное число
+      const priceNum = Number(o.price);
+      const price = Number.isFinite(priceNum) && priceNum > 0 ? priceNum : undefined;
+      return price !== undefined ? { name, qty, unit, price } : { name, qty, unit };
     })
     .filter((x): x is ExtractedItem => x !== null);
 }

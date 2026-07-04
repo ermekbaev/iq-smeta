@@ -20,6 +20,8 @@ export interface ExtractedItem {
   name: string;
   qty: number;
   unit: string;
+  /** Цена за единицу, если прораб назвал её голосом (иначе берётся из прайса). */
+  price?: number;
 }
 
 export interface LlmProvider {

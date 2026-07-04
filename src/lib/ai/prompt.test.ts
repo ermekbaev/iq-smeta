@@ -34,4 +34,15 @@ describe("parseExtraction", () => {
     expect(parseExtraction("извините, не понял")).toEqual([]);
     expect(parseExtraction("")).toEqual([]);
   });
+
+  it("произнесённая цена подхватывается, null/мусор — игнорируется", () => {
+    const r = parseExtraction(
+      '[{"name":"нестандартные работы","qty":1,"unit":"шт","price":20000},' +
+        '{"name":"форсунка","qty":10,"unit":"шт","price":null},' +
+        '{"name":"песок","qty":3,"unit":"куб","price":-5}]'
+    );
+    expect(r[0]).toEqual({ name: "нестандартные работы", qty: 1, unit: "шт", price: 20000 });
+    expect(r[1]).toEqual({ name: "форсунка", qty: 10, unit: "шт" }); // price null → нет поля
+    expect(r[2]).toEqual({ name: "песок", qty: 3, unit: "м3" }); // price<0 → игнор
+  });
 });

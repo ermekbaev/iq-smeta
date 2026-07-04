@@ -114,19 +114,28 @@ export default function RecordPage() {
       setBusy(null);
       if (!mt.ok) return setError(mtData.error ?? "Сбой подбора.");
 
+      // произнесённые цены (выровнены по индексу с результатами подбора)
+      const spokenPrices: (number | undefined)[] = exData.items.map(
+        (it: { price?: number }) => it.price
+      );
+
       const draft: Line[] = mtData.results.map(
-        (r: { input: { name: string; qty: number; unit: string }; match: { best: Candidate | null; candidates: Candidate[]; needsConfirm: boolean } }) => {
+        (r: { input: { name: string; qty: number; unit: string }; match: { best: Candidate | null; candidates: Candidate[]; needsConfirm: boolean } }, i: number) => {
           const b = r.match.needsConfirm ? null : r.match.best;
+          const spokenPrice = spokenPrices[i];
+          const hasSpokenPrice = typeof spokenPrice === "number" && spokenPrice > 0;
           return {
             spokenText: r.input.name,
             name: b?.name ?? r.input.name,
             qty: r.input.qty,
             unit: b?.unit ?? r.input.unit,
-            price: b?.price ?? 0,
+            // названная голосом цена приоритетнее прайсовой (кастом/переопределение)
+            price: hasSpokenPrice ? spokenPrice : b?.price ?? 0,
             priceItemId: b?.id ?? null,
             category: b?.category ?? "Прочее",
             candidates: r.match.candidates,
-            needsConfirm: r.match.needsConfirm,
+            // если цену назвали голосом — не считаем позицию неуверенной
+            needsConfirm: hasSpokenPrice ? false : r.match.needsConfirm,
           };
         }
       );
