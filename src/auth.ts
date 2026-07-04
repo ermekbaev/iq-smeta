@@ -10,6 +10,9 @@ const credentialsSchema = z.object({
 });
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
+  // self-hosted (next start / VPS): доверяем хосту, иначе Auth.js в проде
+  // отдаёт UntrustedHost. За своим reverse-proxy (Caddy/nginx) это норма.
+  trustHost: true,
   session: { strategy: "jwt" },
   pages: { signIn: "/login" },
   providers: [
