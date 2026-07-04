@@ -71,9 +71,23 @@ export async function matchItem(name: string): Promise<MatchResult> {
     };
   }
 
-  // Слой 2+3 — семантика + нечёткое
-  const vector = await ai.embeddings.embed(name);
-  const raw = await searchSimilar(vector, 5);
+  // Слой 2+3 — семантика + нечёткое.
+  // Если эмбеддинги недоступны (rate-limit/сбой провайдера) — не роняем весь
+  // подбор, а возвращаем «нет совпадения» → позиция пойдёт на ручной ввод.
+  let raw: Awaited<ReturnType<typeof searchSimilar>> = [];
+  try {
+    const vector = await ai.embeddings.embed(name);
+    raw = await searchSimilar(vector, 5);
+  } catch {
+    return {
+      query: name,
+      best: null,
+      candidates: [],
+      confidence: 0,
+      needsConfirm: true,
+      source: "none",
+    };
+  }
 
   const candidates: Candidate[] = raw
     .map((c) => {
