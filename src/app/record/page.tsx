@@ -121,20 +121,20 @@ export default function RecordPage() {
 
       const draft: Line[] = mtData.results.map(
         (r: { input: { name: string; qty: number; unit: string }; match: { best: Candidate | null; candidates: Candidate[]; needsConfirm: boolean } }, i: number) => {
-          const b = r.match.needsConfirm ? null : r.match.best;
           const spokenPrice = spokenPrices[i];
           const hasSpokenPrice = typeof spokenPrice === "number" && spokenPrice > 0;
+          // цена названа голосом → это своя позиция (не привязываем к прайсу),
+          // но кандидаты оставляем — при желании можно выбрать каталожную вручную
+          const b = hasSpokenPrice ? null : r.match.needsConfirm ? null : r.match.best;
           return {
             spokenText: r.input.name,
             name: b?.name ?? r.input.name,
             qty: r.input.qty,
             unit: b?.unit ?? r.input.unit,
-            // названная голосом цена приоритетнее прайсовой (кастом/переопределение)
-            price: hasSpokenPrice ? spokenPrice : b?.price ?? 0,
+            price: hasSpokenPrice ? (spokenPrice as number) : b?.price ?? 0,
             priceItemId: b?.id ?? null,
             category: b?.category ?? "Прочее",
             candidates: r.match.candidates,
-            // если цену назвали голосом — не считаем позицию неуверенной
             needsConfirm: hasSpokenPrice ? false : r.match.needsConfirm,
           };
         }
