@@ -93,7 +93,7 @@ export default function CompanySettingsPage() {
     </label>
   );
 
-  const imgBlock = (label: string, k: ImgField, hint: string, round = false) => (
+  const imgBlock = (label: string, k: ImgField, hint: string) => (
     <div className="space-y-2">
       <span className="text-xs text-gray-500">{label}</span>
       <div className="flex items-center gap-3">
@@ -102,7 +102,7 @@ export default function CompanySettingsPage() {
           <img
             src={s[k] as string}
             alt={label}
-            className={`h-16 w-16 border object-contain ${round ? "rounded-full" : "rounded"}`}
+            className="h-16 w-auto max-w-40 rounded border object-contain"
           />
         )}
         <input
@@ -175,7 +175,7 @@ export default function CompanySettingsPage() {
 
       <section className="space-y-5 rounded-xl border bg-white p-5">
         <h2 className="font-medium text-gray-900">Логотип, печать, подпись</h2>
-        {imgBlock("Логотип (по умолчанию)", "logo", "PNG с прозрачным фоном. Используется, если у сметы нет своего лого.", true)}
+        {imgBlock("Логотип (по умолчанию)", "logo", "PNG с прозрачным фоном. Используется, если у сметы нет своего лого.")}
         <div className="grid gap-5 sm:grid-cols-2">
           {imgBlock("Печать", "stamp", "PNG с прозрачным фоном.")}
           {imgBlock("Подпись", "signature", "PNG с прозрачным фоном.")}

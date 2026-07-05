@@ -72,10 +72,10 @@ export function estimateHtml(d: EstimatePdfData): string {
   return `<!doctype html>
 <html lang="ru"><head><meta charset="utf-8"><style>
   * { box-sizing: border-box; }
-  body { font-family: 'DejaVu Sans', Arial, sans-serif; color: #111; font-size: 11px; margin: 28px; }
+  body { font-family: 'DejaVu Sans', Arial, sans-serif; color: #111; font-size: 11px; margin: 28px; background: #fff; }
   .head { display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 2px solid #111; padding-bottom: 10px; margin-bottom: 16px; }
   .brandbox { display: flex; align-items: center; gap: 12px; }
-  .logo { height: 56px; width: 56px; border-radius: 50%; object-fit: cover; background: #fff; }
+  .logo { height: 46px; width: auto; max-width: 210px; object-fit: contain; }
   .brand { font-size: 20px; font-weight: 700; }
   .contacts { color: #555; font-size: 11px; margin-top: 4px; }
   .meta { text-align: right; font-size: 11px; color: #333; }

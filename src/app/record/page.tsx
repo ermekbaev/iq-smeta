@@ -308,7 +308,7 @@ export default function RecordPage() {
                   <img
                     src={logo}
                     alt="логотип"
-                    className="h-12 w-12 rounded-full border object-cover"
+                    className="h-12 w-auto max-w-32 rounded border object-contain"
                   />
                 )}
                 <input
