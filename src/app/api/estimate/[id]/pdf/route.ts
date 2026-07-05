@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { groupByCategory } from "@/lib/estimate/service";
 import { estimateHtml } from "@/lib/pdf/template";
 import { renderPdf } from "@/lib/pdf/render";
+import { getCompanyBrand } from "@/lib/brand/company";
 
 export const runtime = "nodejs";
 
@@ -25,6 +26,8 @@ export async function GET(
   // артикул берём из связанной позиции прайса (у ручных позиций его нет)
   const items = estimate.items.map((it) => ({ ...it, article: it.priceItem?.article ?? null }));
 
+  const company = await getCompanyBrand();
+
   const html = estimateHtml({
     number: estimate.id.slice(-6).toUpperCase(),
     date: estimate.createdAt.toLocaleDateString("ru-RU"),
@@ -33,6 +36,7 @@ export async function GET(
     groups: groupByCategory(items),
     total: Number(estimate.total),
     logo: estimate.logo,
+    company,
   });
 
   const pdf = await renderPdf(html);

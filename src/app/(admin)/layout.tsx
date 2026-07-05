@@ -29,6 +29,9 @@ export default async function AdminLayout({
             <Link href="/record" className="hidden text-gray-600 hover:text-gray-900 sm:inline">
               Запись
             </Link>
+            <Link href="/admin/settings" className="hidden text-gray-600 hover:text-gray-900 sm:inline">
+              Настройки
+            </Link>
           </nav>
           <form
             className="shrink-0"

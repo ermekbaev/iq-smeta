@@ -1,34 +1,17 @@
-// Реквизиты ИП заказчика для КП — ЗАШИТЫ здесь (один бренд, как в metalcrm).
+// Реквизиты компании/ИП для КП. Хранятся в БД (CompanySettings, синглтон),
+// редактируются на странице «Настройки компании» — как в metalcrm.
 // Мультибренд (сборники со своими реквизитами/лого) — следующая фаза.
-//
-// Картинки (логотип, печать, подпись) кладутся файлами в ./assets и читаются
-// в data URL (Puppeteer не резолвит относительные пути). Замени плейсхолдеры
-// ниже на настоящие данные из Excel заказчика.
 
-import fs from "node:fs";
-import path from "node:path";
+import { prisma } from "@/lib/prisma";
 
-const ASSET_DIR = path.join(process.cwd(), "src", "lib", "brand", "assets");
-
-/** Читает картинку бренда → data URL. Нет файла — пустая строка (в PDF просто не покажется). */
-function assetDataUrl(file: string): string {
-  try {
-    const buf = fs.readFileSync(path.join(ASSET_DIR, file));
-    const ext = path.extname(file).slice(1).toLowerCase();
-    const mime =
-      ext === "svg" ? "image/svg+xml" : ext === "jpg" || ext === "jpeg" ? "image/jpeg" : "image/png";
-    return `data:${mime};base64,${buf.toString("base64")}`;
-  } catch {
-    return "";
-  }
-}
+export const SETTINGS_ID = "singleton";
 
 export interface CompanyBrand {
   /** Название бренда/ИП в шапке. */
   name: string;
   /** Дефолтный логотип (если у сметы нет своего загруженного). */
   logoUrl: string;
-  /** Строка контактов под названием (сайт/телефон). */
+  /** Строка контактов под названием (сайт/телефон/email). */
   contacts: string;
   /** Строки реквизитов для подвала КП. */
   requisites: string[];
@@ -36,23 +19,46 @@ export interface CompanyBrand {
   stampUrl: string;
   /** Подпись (data URL). */
   signatureUrl: string;
-  /** Кто подписывает — под подписью (напр. «ИП Мохов Ю. А.»). */
+  /** Кто подписывает — под подписью. */
   signer: string;
 }
 
-// TODO(заказчик): подставить настоящие значения из Excel (ИП, ИНН, ОГРНИП, адрес, банк).
-// Файлы положить: assets/logo.png, assets/stamp.png, assets/signature.png (PNG с прозрачным фоном).
-export const COMPANY: CompanyBrand = {
-  name: process.env.COMPANY_NAME || "IQ Полив",
-  logoUrl: assetDataUrl("logo.png"),
-  contacts: process.env.COMPANY_CONTACTS || "iqpoliv.ru",
-  requisites: [
-    "ИП — (наименование)",
-    "ИНН — · ОГРНИП —",
-    "Адрес: —",
-    "Р/с — · Банк — · БИК —",
-  ],
-  stampUrl: assetDataUrl("stamp.png"),
-  signatureUrl: assetDataUrl("signature.png"),
-  signer: "ИП —",
-};
+/** Настройки компании из БД (или пустой синглтон). */
+export async function getCompanySettings() {
+  const s = await prisma.companySettings.findUnique({ where: { id: SETTINGS_ID } });
+  return s;
+}
+
+/** Собирает бренд для PDF/КП из настроек компании. */
+export async function getCompanyBrand(): Promise<CompanyBrand> {
+  const s = await getCompanySettings();
+
+  const contacts = [s?.phone, s?.website, s?.email].filter(Boolean).join(" · ");
+
+  const requisites: string[] = [];
+  if (s?.name) requisites.push(s.name);
+  const idLine = [s?.inn ? `ИНН ${s.inn}` : "", s?.ogrn ? `ОГРНИП ${s.ogrn}` : ""]
+    .filter(Boolean)
+    .join(" · ");
+  if (idLine) requisites.push(idLine);
+  if (s?.address) requisites.push(`Адрес: ${s.address}`);
+  const bank = [
+    s?.bankName ? `Банк: ${s.bankName}` : "",
+    s?.bankAccount ? `Р/с ${s.bankAccount}` : "",
+    s?.bankBik ? `БИК ${s.bankBik}` : "",
+    s?.bankCorAccount ? `К/с ${s.bankCorAccount}` : "",
+  ]
+    .filter(Boolean)
+    .join(" · ");
+  if (bank) requisites.push(bank);
+
+  return {
+    name: s?.name || "IQ SMETA",
+    logoUrl: s?.logo || "",
+    contacts,
+    requisites,
+    stampUrl: s?.stamp || "",
+    signatureUrl: s?.signature || "",
+    signer: s?.signer || s?.name || "",
+  };
+}

@@ -1,9 +1,9 @@
 // HTML-шаблон фирменной сметы / КП (PLAN 3.5). Рендерится в PDF через Puppeteer.
-// Логотип — на уровне сметы (загружается при создании КП). Реквизиты/печать/подпись —
-// из конфига бренда (src/lib/brand/company.ts, зашиты под один ИП).
+// Логотип — на уровне сметы (загружается при создании КП). Реквизиты/печать/подпись/
+// дефолтное лого — из настроек компании (CompanySettings в БД), передаются в d.company.
 
 import { EstimateGroup } from "@/lib/estimate/service";
-import { COMPANY } from "@/lib/brand/company";
+import { CompanyBrand } from "@/lib/brand/company";
 
 export interface EstimatePdfData {
   number: string;
@@ -12,8 +12,10 @@ export interface EstimatePdfData {
   clientName?: string | null;
   groups: EstimateGroup[];
   total: number;
-  /** Логотип КП (data URL) — если у сметы свой; иначе берётся дефолтный из конфига. */
+  /** Логотип КП (data URL) — если у сметы свой; иначе берётся дефолтный из настроек. */
   logo?: string | null;
+  /** Реквизиты/лого/печать компании из настроек. */
+  company: CompanyBrand;
 }
 
 const money = (n: number) =>
@@ -61,10 +63,11 @@ export function estimateHtml(d: EstimatePdfData): string {
   const equip = d.groups.filter((g) => !g.isWork).reduce((s, g) => s + g.subtotal, 0);
   const works = d.groups.filter((g) => g.isWork).reduce((s, g) => s + g.subtotal, 0);
 
-  const logo = imgSrc(d.logo) || imgSrc(COMPANY.logoUrl);
-  const stamp = imgSrc(COMPANY.stampUrl);
-  const signature = imgSrc(COMPANY.signatureUrl);
-  const requisites = COMPANY.requisites.map((r) => esc(r)).join("<br>");
+  const c = d.company;
+  const logo = imgSrc(d.logo) || imgSrc(c.logoUrl);
+  const stamp = imgSrc(c.stampUrl);
+  const signature = imgSrc(c.signatureUrl);
+  const requisites = c.requisites.map((r) => esc(r)).join("<br>");
 
   return `<!doctype html>
 <html lang="ru"><head><meta charset="utf-8"><style>
@@ -101,8 +104,8 @@ export function estimateHtml(d: EstimatePdfData): string {
     <div class="brandbox">
       ${logo ? `<img class="logo" src="${logo}" alt="">` : ""}
       <div>
-        <div class="brand">${esc(COMPANY.name)}</div>
-        <div class="contacts">${esc(COMPANY.contacts)}</div>
+        <div class="brand">${esc(c.name)}</div>
+        <div class="contacts">${esc(c.contacts)}</div>
       </div>
     </div>
     <div class="meta">Смета № ${esc(d.number)}<br>от ${esc(d.date)}</div>
@@ -132,7 +135,7 @@ export function estimateHtml(d: EstimatePdfData): string {
         ${signature ? `<img class="sig" src="${signature}" alt="">` : ""}
         ${stamp ? `<img class="stamp" src="${stamp}" alt="">` : ""}
       </div>
-      <div class="line">${esc(COMPANY.signer)}</div>
+      <div class="line">${esc(c.signer)}</div>
     </div>
   </div>
 </body></html>`;

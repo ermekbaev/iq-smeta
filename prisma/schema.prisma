@@ -101,3 +101,27 @@ model EstimateItem {
   @@index([estimateId])
   @@map("estimate_items")
 }
+
+// Реквизиты компании/ИП для КП — редактируются на «Настройки компании».
+// Один бренд (синглтон). Картинки — data URL в Text. Мультибренд — следующая фаза.
+model CompanySettings {
+  id             String   @id @default("singleton")
+  name           String   @default("") // наименование ИП/компании (шапка)
+  inn            String?
+  ogrn           String? // ОГРН / ОГРНИП
+  address        String?
+  phone          String?
+  email          String?
+  website        String?
+  bankName       String?  @map("bank_name")
+  bankAccount    String?  @map("bank_account")
+  bankCorAccount String?  @map("bank_cor_account")
+  bankBik        String?  @map("bank_bik")
+  signer         String? // кто подписывает (под подписью)
+  logo           String?  @db.Text // дефолтный логотип (data URL)
+  stamp          String?  @db.Text // печать (data URL)
+  signature      String?  @db.Text // подпись (data URL)
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  @@map("company_settings")
+}
