@@ -73,6 +73,8 @@ model Estimate {
   user       User           @relation(fields: [userId], references: [id], onDelete: Cascade)
   title      String
   clientName String?        @map("client_name")
+  // Логотип для КП (data URL). Реквизиты/печать/подпись — в конфиге бренда (src/lib/brand).
+  logo       String?        @db.Text
   total      Decimal        @default(0) @db.Decimal(14, 2)
   createdAt  DateTime       @default(now()) @map("created_at")
   items      EstimateItem[]

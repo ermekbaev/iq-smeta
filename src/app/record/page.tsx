@@ -39,6 +39,7 @@ export default function RecordPage() {
   const [lines, setLines] = useState<Line[]>([]);
   const [title, setTitle] = useState("Смета");
   const [clientName, setClientName] = useState("");
+  const [logo, setLogo] = useState<string | null>(null);
 
   const recorderRef = useRef<WavRecorder | null>(null);
 
@@ -173,6 +174,19 @@ export default function RecordPage() {
     setLines((ls) => ls.filter((_, idx) => idx !== i));
   }
 
+  // Логотип для КП: файл → data URL (реквизиты/печать зашиты в конфиг бренда)
+  function onLogoFile(e: React.ChangeEvent<HTMLInputElement>) {
+    const f = e.target.files?.[0];
+    if (!f) return;
+    if (f.size > 2_000_000) {
+      setError("Логотип слишком большой (до 2 МБ).");
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => setLogo(reader.result as string);
+    reader.readAsDataURL(f);
+  }
+
   async function save() {
     setError(null);
     setBusy("Сохраняю смету…");
@@ -183,6 +197,7 @@ export default function RecordPage() {
         body: JSON.stringify({
           title: title || "Смета",
           clientName: clientName || null,
+          logo,
           lines: lines.map((l) => ({
             spokenText: l.spokenText,
             priceItemId: l.priceItemId,
@@ -285,6 +300,37 @@ export default function RecordPage() {
                 className="w-full rounded border border-gray-300 px-3 py-2 text-sm"
               />
             </label>
+            <div className="space-y-1 sm:col-span-2">
+              <span className="text-xs text-gray-500">Логотип для КП (необязательно)</span>
+              <div className="flex items-center gap-3">
+                {logo && (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={logo}
+                    alt="логотип"
+                    className="h-12 w-12 rounded-full border object-cover"
+                  />
+                )}
+                <input
+                  type="file"
+                  accept="image/png,image/jpeg,image/svg+xml"
+                  onChange={onLogoFile}
+                  className="text-sm"
+                />
+                {logo && (
+                  <button
+                    type="button"
+                    onClick={() => setLogo(null)}
+                    className="text-sm text-red-400 hover:text-red-600"
+                  >
+                    убрать
+                  </button>
+                )}
+              </div>
+              <p className="text-[11px] text-gray-400">
+                Реквизиты и печать берутся из настроек компании. Лого — на этот КП.
+              </p>
+            </div>
           </section>
 
           <section className="space-y-3 rounded-xl border bg-white p-5">

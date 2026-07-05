@@ -21,6 +21,8 @@ export interface DraftLine {
 export interface CreateEstimateInput {
   title: string;
   clientName?: string | null;
+  /** Логотип КП (data URL), загруженный при создании. */
+  logo?: string | null;
   lines: DraftLine[];
 }
 
@@ -40,6 +42,7 @@ export async function createEstimate(
         userId,
         title: input.title,
         clientName: input.clientName ?? null,
+        logo: input.logo ?? null,
         total,
         items: {
           create: items.map(({ line, sum }) => ({
@@ -77,6 +80,8 @@ export async function createEstimate(
 export interface UpdateEstimateInput {
   title: string;
   clientName?: string | null;
+  /** Логотип КП (data URL). undefined — не трогать; null/строка — заменить. */
+  logo?: string | null;
   lines: DraftLine[];
 }
 
@@ -96,6 +101,8 @@ export async function updateEstimate(
       data: {
         title: input.title,
         clientName: input.clientName ?? null,
+        // logo передан (в т.ч. null) — обновляем; undefined — оставляем как есть
+        ...(input.logo !== undefined ? { logo: input.logo } : {}),
         total,
         items: {
           create: items.map(({ line, sum }) => ({

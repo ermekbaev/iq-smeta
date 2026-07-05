@@ -32,6 +32,7 @@ export async function GET(
     clientName: estimate.clientName,
     groups: groupByCategory(items),
     total: Number(estimate.total),
+    logo: estimate.logo,
   });
 
   const pdf = await renderPdf(html);
