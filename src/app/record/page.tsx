@@ -302,7 +302,7 @@ export default function RecordPage() {
             </label>
             <div className="space-y-1 sm:col-span-2">
               <span className="text-xs text-gray-500">Логотип для КП (необязательно)</span>
-              <div className="flex items-center gap-3">
+              <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
                 {logo && (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img
@@ -315,7 +315,7 @@ export default function RecordPage() {
                   type="file"
                   accept="image/png,image/jpeg,image/svg+xml"
                   onChange={onLogoFile}
-                  className="text-sm"
+                  className="max-w-full text-sm"
                 />
                 {logo && (
                   <button

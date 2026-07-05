@@ -96,7 +96,7 @@ export default function CompanySettingsPage() {
   const imgBlock = (label: string, k: ImgField, hint: string) => (
     <div className="space-y-2">
       <span className="text-xs text-gray-500">{label}</span>
-      <div className="flex items-center gap-3">
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
         {s[k] && (
           // eslint-disable-next-line @next/next/no-img-element
           <img
@@ -109,7 +109,7 @@ export default function CompanySettingsPage() {
           type="file"
           accept="image/png,image/jpeg,image/svg+xml"
           onChange={(e) => onImg(k, e)}
-          className="text-sm"
+          className="max-w-full text-sm"
         />
         {s[k] && (
           <button
