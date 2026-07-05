@@ -33,7 +33,9 @@ export default async function LoginPage({
         action={login}
         className="w-full max-w-sm space-y-4 rounded-xl bg-white p-6 shadow"
       >
-        <h1 className="text-xl font-semibold text-gray-900">IQ SMETA — вход</h1>
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src="/logo-iqsmeta.svg" alt="IQ Smeta" className="mx-auto h-9 w-auto" />
+        <h1 className="text-center text-sm text-gray-500">Вход в систему</h1>
         {error && (
           <p className="rounded bg-red-50 px-3 py-2 text-sm text-red-600">
             Неверный email или пароль

@@ -16,8 +16,9 @@ export default async function AdminLayout({
       <header className="border-b bg-white">
         <div className="mx-auto flex max-w-5xl items-center justify-between px-4 py-3">
           <nav className="flex items-center gap-4 text-sm">
-            <Link href="/admin" className="font-semibold text-gray-900">
-              IQ SMETA
+            <Link href="/admin" className="flex items-center">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src="/logo-iqsmeta.svg" alt="IQ Smeta" className="h-7 w-auto" />
             </Link>
             {/* верхние ссылки — только на десктопе; на мобиле они в нижнем таб-баре */}
             <Link href="/admin/price" className="hidden text-gray-600 hover:text-gray-900 sm:inline">
