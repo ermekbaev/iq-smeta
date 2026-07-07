@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
+import InstallPwaButton from "@/components/InstallPwaButton";
 
 export default async function AdminDashboard() {
   const [priceCount, estimateCount] = await Promise.all([
@@ -35,6 +36,8 @@ export default async function AdminDashboard() {
           Реквизиты, логотип и печать для КП
         </div>
       </Link>
+
+      <InstallPwaButton />
     </div>
   );
 }
