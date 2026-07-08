@@ -1,29 +1,28 @@
-# Прод-образ приложения IQ SMETA: Next.js 16 + Prisma + Puppeteer(Chromium).
-# Chromium ставим системный (для PDF-КП), Puppeteer его не качает.
+# Прод-образ IQ SMETA: Next.js 16 + Prisma + Puppeteer.
+# Puppeteer тянет СВОЙ Chrome (совместимый с версией пакета) — надёжнее, чем
+# системный chromium (тот в контейнере падал с "Failed to launch ... Code: null").
 FROM node:22-bookworm-slim
 
-# Системный Chromium + шрифты/библиотеки, нужные для рендера PDF.
+# OS-библиотеки, нужные Chrome (сам браузер скачает Puppeteer).
 RUN apt-get update && apt-get install -y --no-install-recommends \
-      chromium \
-      fonts-liberation fonts-dejavu \
-      ca-certificates \
-      libnss3 libatk-bridge2.0-0 libatk1.0-0 libcups2 libdrm2 \
-      libxcomposite1 libxdamage1 libxrandr2 libgbm1 libxkbcommon0 \
-      libpangocairo-1.0-0 libgtk-3-0 libasound2 \
+      ca-certificates fonts-liberation fonts-dejavu \
+      libnss3 libnspr4 libatk1.0-0 libatk-bridge2.0-0 libcups2 libdrm2 \
+      libdbus-1-3 libxcb1 libxkbcommon0 libx11-6 libxcomposite1 libxdamage1 \
+      libxext6 libxfixes3 libxrandr2 libgbm1 libpango-1.0-0 libcairo2 \
+      libasound2 libatspi2.0-0 libxshmfence1 \
  && rm -rf /var/lib/apt/lists/*
 
-# Puppeteer использует системный Chromium, свой не скачивает.
-ENV PUPPETEER_SKIP_DOWNLOAD=true \
-    PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium \
-    NEXT_TELEMETRY_DISABLED=1 \
-    NODE_ENV=production
+ENV NEXT_TELEMETRY_DISABLED=1 \
+    NODE_ENV=production \
+    PUPPETEER_CACHE_DIR=/app/.cache/puppeteer
 
 WORKDIR /app
 
 # Схема + конфиг Prisma нужны до npm ci: postinstall запускает prisma generate.
 COPY package*.json prisma.config.ts ./
 COPY prisma ./prisma
-RUN npm ci --include=dev
+# Зависимости + гарантированно скачиваем Chrome в PUPPETEER_CACHE_DIR.
+RUN npm ci --include=dev && npx puppeteer browsers install chrome
 
 # Остальные исходники + сборка.
 COPY . .
