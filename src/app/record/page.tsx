@@ -295,7 +295,7 @@ export default function RecordPage() {
               />
             </label>
             <label className="space-y-1">
-              <span className="text-xs text-gray-500">Заказчик (необязательно)</span>
+              <span className="text-xs text-gray-500">Объект / название (необязательно)</span>
               <input
                 value={clientName}
                 onChange={(e) => setClientName(e.target.value)}
