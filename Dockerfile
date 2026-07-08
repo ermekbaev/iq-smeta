@@ -20,11 +20,12 @@ ENV PUPPETEER_SKIP_DOWNLOAD=true \
 
 WORKDIR /app
 
-# Зависимости (devDeps тоже — нужны prisma CLI и сборка Next).
-COPY package*.json ./
+# Схема + конфиг Prisma нужны до npm ci: postinstall запускает prisma generate.
+COPY package*.json prisma.config.ts ./
+COPY prisma ./prisma
 RUN npm ci --include=dev
 
-# Исходники + сборка.
+# Остальные исходники + сборка.
 COPY . .
 # Заглушка DATABASE_URL только на время сборки (к БД сборка не подключается).
 RUN DATABASE_URL="postgresql://build:build@localhost:5432/build" npm run build
