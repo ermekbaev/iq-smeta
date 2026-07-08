@@ -27,10 +27,11 @@ export async function GET(
   const items = estimate.items.map((it) => ({ ...it, article: it.priceItem?.article ?? null }));
 
   const company = await getCompanyBrand();
+  const date = estimate.createdAt.toLocaleDateString("ru-RU");
 
   const html = estimateHtml({
     number: estimate.id.slice(-6).toUpperCase(),
-    date: estimate.createdAt.toLocaleDateString("ru-RU"),
+    date,
     title: estimate.title,
     clientName: estimate.clientName,
     groups: groupByCategory(items),
@@ -39,11 +40,22 @@ export async function GET(
     company,
   });
 
+  // Имя файла: IQsmeta_<объект/заказчик>_<дата>.pdf
+  // Объект — заказчик, если задан, иначе название сметы.
+  const object = (estimate.clientName || estimate.title || "смета")
+    .replace(/[\/\\:*?"<>|\r\n]+/g, " ") // убрать недопустимые в имени файла
+    .replace(/\s+/g, " ")
+    .trim();
+  const base = `IQsmeta_${object}_${date}.pdf`;
+  // ASCII-фолбэк (старые клиенты) + UTF-8 по RFC 5987 (кириллица корректно).
+  const ascii = base.replace(/[^\x20-\x7E]+/g, "_").replace(/["\\]/g, "");
+  const disposition = `inline; filename="${ascii}"; filename*=UTF-8''${encodeURIComponent(base)}`;
+
   const pdf = await renderPdf(html);
   return new NextResponse(pdf as unknown as BodyInit, {
     headers: {
       "Content-Type": "application/pdf",
-      "Content-Disposition": `inline; filename="smeta-${estimate.id.slice(-6)}.pdf"`,
+      "Content-Disposition": disposition,
     },
   });
 }
