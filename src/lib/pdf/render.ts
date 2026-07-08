@@ -7,7 +7,15 @@ import puppeteer from "puppeteer";
 export async function renderPdf(html: string): Promise<Buffer> {
   const browser = await puppeteer.launch({
     headless: true,
-    args: ["--no-sandbox", "--disable-setuid-sandbox"],
+    // В Docker: системный Chromium + флаги против падений
+    // (/dev/shm мал → --disable-dev-shm-usage; без sandbox под root).
+    executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || undefined,
+    args: [
+      "--no-sandbox",
+      "--disable-setuid-sandbox",
+      "--disable-dev-shm-usage",
+      "--disable-gpu",
+    ],
   });
   try {
     const page = await browser.newPage();
