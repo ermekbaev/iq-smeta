@@ -79,6 +79,31 @@ export default function CompanySettingsPage() {
     setMsg(res.ok ? "Сохранено." : "Не удалось сохранить.");
   }
 
+  // --- Смена пароля ---
+  const [pw, setPw] = useState({ current: "", next: "", confirm: "" });
+  const [pwSaving, setPwSaving] = useState(false);
+  const [pwMsg, setPwMsg] = useState<string | null>(null);
+
+  async function changePassword() {
+    setPwMsg(null);
+    if (pw.next.length < 8) return setPwMsg("Новый пароль — минимум 8 символов.");
+    if (pw.next !== pw.confirm) return setPwMsg("Пароли не совпадают.");
+    setPwSaving(true);
+    const res = await fetch("/api/settings/password", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ currentPassword: pw.current, newPassword: pw.next }),
+    });
+    const data = await res.json().catch(() => ({}));
+    setPwSaving(false);
+    if (res.ok) {
+      setPw({ current: "", next: "", confirm: "" });
+      setPwMsg("Пароль изменён.");
+    } else {
+      setPwMsg(data.error ?? "Не удалось сменить пароль.");
+    }
+  }
+
   if (loading) return <p className="text-sm text-gray-500">Загрузка…</p>;
 
   const field = (label: string, k: keyof Settings, ph = "") => (
@@ -179,6 +204,52 @@ export default function CompanySettingsPage() {
         <div className="grid gap-5 sm:grid-cols-2">
           {imgBlock("Печать", "stamp", "PNG с прозрачным фоном.")}
           {imgBlock("Подпись", "signature", "PNG с прозрачным фоном.")}
+        </div>
+      </section>
+
+      <section className="space-y-4 rounded-xl border bg-white p-5">
+        <h2 className="font-medium text-gray-900">Смена пароля</h2>
+        <div className="grid gap-3 sm:grid-cols-3">
+          <label className="space-y-1">
+            <span className="text-xs text-gray-500">Текущий пароль</span>
+            <input
+              type="password"
+              autoComplete="current-password"
+              value={pw.current}
+              onChange={(e) => setPw((p) => ({ ...p, current: e.target.value }))}
+              className="w-full rounded border border-gray-300 px-3 py-2 text-sm"
+            />
+          </label>
+          <label className="space-y-1">
+            <span className="text-xs text-gray-500">Новый пароль</span>
+            <input
+              type="password"
+              autoComplete="new-password"
+              value={pw.next}
+              onChange={(e) => setPw((p) => ({ ...p, next: e.target.value }))}
+              className="w-full rounded border border-gray-300 px-3 py-2 text-sm"
+            />
+          </label>
+          <label className="space-y-1">
+            <span className="text-xs text-gray-500">Повторите новый</span>
+            <input
+              type="password"
+              autoComplete="new-password"
+              value={pw.confirm}
+              onChange={(e) => setPw((p) => ({ ...p, confirm: e.target.value }))}
+              className="w-full rounded border border-gray-300 px-3 py-2 text-sm"
+            />
+          </label>
+        </div>
+        <div className="flex items-center gap-3">
+          <button
+            onClick={changePassword}
+            disabled={pwSaving || !pw.current || !pw.next}
+            className="rounded bg-gray-900 px-4 py-2 text-sm font-medium text-white hover:bg-gray-700 disabled:opacity-50"
+          >
+            {pwSaving ? "Меняю…" : "Сменить пароль"}
+          </button>
+          {pwMsg && <span className="text-sm text-gray-700">{pwMsg}</span>}
         </div>
       </section>
     </div>
