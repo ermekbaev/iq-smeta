@@ -32,21 +32,18 @@ function imgSrc(src: string | null | undefined): string {
   return src && /^(data:|https?:)/.test(src) ? src : "";
 }
 
-const COLS = 7; // №, Артикул, Наименование, Ед., Кол-во, Цена, Сумма
+const COLS = 5; // Наименование, Кол-во, Ед.изм., Цена, Сумма (по шаблону заказчика)
 
 export function estimateHtml(d: EstimatePdfData): string {
-  let rowNum = 0; // сквозная нумерация по всему документу
   const rows = d.groups
     .map((g) => {
       const lines = g.lines
         .map(
           (l) => `
         <tr>
-          <td class="num">${++rowNum}</td>
-          <td class="art">${esc(l.article ?? "")}</td>
           <td>${esc(l.name)}</td>
-          <td class="c">${esc(l.unit)}</td>
           <td class="r">${money(l.qty)}</td>
+          <td class="c">${esc(l.unit)}</td>
           <td class="r">${money(l.price)}</td>
           <td class="r">${money(l.sum)}</td>
         </tr>`
@@ -59,8 +56,7 @@ export function estimateHtml(d: EstimatePdfData): string {
     })
     .join("");
 
-  // раздельные итоги: оборудование/материалы и работы (как в смете заказчика)
-  const equip = d.groups.filter((g) => !g.isWork).reduce((s, g) => s + g.subtotal, 0);
+  // общая стоимость работ (без НДС) — по шаблону заказчика
   const works = d.groups.filter((g) => g.isWork).reduce((s, g) => s + g.subtotal, 0);
 
   const c = d.company;
@@ -112,20 +108,19 @@ export function estimateHtml(d: EstimatePdfData): string {
   </div>
 
   <h1>${esc(d.title)}</h1>
-  ${d.clientName ? `<div class="client">Заказчик: ${esc(d.clientName)}</div>` : ""}
+  ${d.clientName ? `<div class="client">Объект: ${esc(d.clientName)}</div>` : ""}
 
   <table>
     <thead><tr>
-      <th class="num">№</th><th>Артикул</th><th>Наименование</th><th>Ед.</th>
-      <th class="r">Кол-во</th><th class="r">Цена</th><th class="r">Сумма</th>
+      <th>Наименование</th>
+      <th class="r">Кол-во</th><th class="c">Ед.изм.</th><th class="r">Цена</th><th class="r">Сумма</th>
     </tr></thead>
     <tbody>${rows}</tbody>
   </table>
 
   <div class="totals">
-    ${equip > 0 ? `<div class="row"><span>Оборудование и материалы</span><b>${money(equip)} ₽</b></div>` : ""}
-    ${works > 0 ? `<div class="row"><span>Работы</span><b>${money(works)} ₽</b></div>` : ""}
-    <div class="row grand"><span>ИТОГО</span><span>${money(d.total)} ₽</span></div>
+    <div class="row grand"><span>Итого без НДС</span><span>${money(d.total)} ₽</span></div>
+    ${works > 0 ? `<div class="row"><span>Общая стоимость работ (без НДС)</span><b>${money(works)} ₽</b></div>` : ""}
   </div>
 
   <div class="footer">
