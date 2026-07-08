@@ -7,7 +7,7 @@
 // (нативный механизм Node, без кода). В dev на крайний случай — NODE_TLS_REJECT_UNAUTHORIZED=0.
 
 import { randomUUID } from "node:crypto";
-import { EmbeddingsProvider, LlmProvider, ExtractedItem } from "./types";
+import { EmbeddingsProvider, LlmProvider, Extraction } from "./types";
 import { EXTRACT_SYSTEM_PROMPT, parseExtraction } from "./prompt";
 import { chunk, withRetry } from "./util";
 
@@ -58,7 +58,7 @@ async function api(path: string, body: unknown): Promise<unknown> {
 }
 
 export const gigachatLlm: LlmProvider = {
-  async extractItems(text: string): Promise<ExtractedItem[]> {
+  async extractItems(text: string): Promise<Extraction> {
     const data = (await api("/chat/completions", {
       model: process.env.GIGACHAT_MODEL || "GigaChat",
       temperature: 0,

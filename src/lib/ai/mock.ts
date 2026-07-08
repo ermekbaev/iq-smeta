@@ -5,7 +5,7 @@ import { isKnownUnit, normalizeUnit } from "@/lib/units";
 import {
   AsrProvider,
   EmbeddingsProvider,
-  ExtractedItem,
+  Extraction,
   LlmProvider,
   EMBEDDING_DIM,
 } from "./types";
@@ -23,14 +23,17 @@ export const mockAsr: AsrProvider = {
 // Наивное извлечение: "<кол-во> <ед?> <название>" по запятым/союзу «и».
 // Не претендует на точность — это заглушка под реальную LLM (PLAN 3.4).
 export const mockLlm: LlmProvider = {
-  async extractItems(text: string): Promise<ExtractedItem[]> {
+  async extractItems(text: string): Promise<Extraction> {
+    // Заказчик: «смета для …», «заказчик …», «клиент …» до запятой/двоеточия.
+    const { client, rest: body } = stripClient(text);
+
     // \b не работает с кириллицей — разбиваем по запятым и обособленному «и»
-    const chunks = text
+    const chunks = body
       .split(/[,;]|\s+и\s+/i)
       .map((s) => s.trim())
       .filter(Boolean);
 
-    return chunks.map((chunk) => {
+    const items = chunks.map((chunk) => {
       // ведущее число
       const numMatch = chunk.match(/^(\d+(?:[.,]\d+)?)\s*(.*)$/);
       const qty = numMatch ? parseFloat(numMatch[1].replace(",", ".")) : 1;
@@ -50,8 +53,18 @@ export const mockLlm: LlmProvider = {
         unit,
       };
     });
+
+    return { client, items };
   },
 };
+
+// Вырезает из начала диктовки заказчика: «смета для X», «заказчик X», «клиент X».
+// Имя — до первой запятой/двоеточия/точки с запятой. Возвращает остаток текста.
+function stripClient(text: string): { client: string | null; rest: string } {
+  const m = text.match(/^\s*(?:смета\s+(?:для|на)|заказчик|клиент|для)\s+([^,;:.]+)[,;:.]?\s*/i);
+  if (!m) return { client: null, rest: text };
+  return { client: m[1].trim(), rest: text.slice(m[0].length) };
+}
 
 // Детерминированный псевдо-эмбеддинг: хэш символов → вектор фикс. длины.
 // НЕ семантический; нужен только чтобы плумбинг pgvector работал в dev.

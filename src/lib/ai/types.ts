@@ -24,9 +24,16 @@ export interface ExtractedItem {
   price?: number;
 }
 
+/** Результат разбора диктовки: заказчик (если назван) + позиции (PLAN 3.4). */
+export interface Extraction {
+  /** Имя заказчика, если в речи было «смета для…»/«заказчик…»; иначе null. */
+  client: string | null;
+  items: ExtractedItem[];
+}
+
 export interface LlmProvider {
-  /** Свободный текст диктовки → структурированный список позиций. */
-  extractItems(text: string): Promise<ExtractedItem[]>;
+  /** Свободный текст диктовки → заказчик + структурированный список позиций. */
+  extractItems(text: string): Promise<Extraction>;
 }
 
 export interface EmbeddingsProvider {

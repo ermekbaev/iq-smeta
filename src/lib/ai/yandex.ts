@@ -9,7 +9,7 @@
 //  - Эмбеддинги YandexGPT — 256-мерные (не 1024). Если выбран Яндекс для подбора,
 //    сменить EMBEDDING_DIM на 256 И vector(256) в схеме + миграция (см. guard в index.ts).
 
-import { AsrProvider, EmbeddingsProvider, LlmProvider, ExtractedItem } from "./types";
+import { AsrProvider, EmbeddingsProvider, LlmProvider, Extraction } from "./types";
 import { EXTRACT_SYSTEM_PROMPT, parseExtraction } from "./prompt";
 import { concurrentMap, withRetry } from "./util";
 
@@ -51,7 +51,7 @@ export const yandexAsr: AsrProvider = {
 };
 
 export const yandexLlm: LlmProvider = {
-  async extractItems(text: string): Promise<ExtractedItem[]> {
+  async extractItems(text: string): Promise<Extraction> {
     const { apiKey, folderId } = cfg();
     const model = process.env.YANDEX_GPT_MODEL || "yandexgpt";
     const res = await fetch(LLM_URL, {

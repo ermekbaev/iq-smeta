@@ -104,6 +104,8 @@ export default function RecordPage() {
         setBusy(null);
         return setError(exData.error ?? "Не удалось выделить позиции.");
       }
+      // заказчик из речи («смета для ИП Адилет») → поле КП; не затираем ручной ввод
+      if (exData.client) setClientName((prev) => prev || exData.client);
 
       setBusy("Подбираю по прайсу…");
       const mt = await fetch("/api/match", {

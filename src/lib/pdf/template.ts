@@ -108,7 +108,7 @@ export function estimateHtml(d: EstimatePdfData): string {
   </div>
 
   <h1>${esc(d.title)}</h1>
-  ${d.clientName ? `<div class="client">Объект: ${esc(d.clientName)}</div>` : ""}
+  ${d.clientName ? `<div class="client">Заказчик: ${esc(d.clientName)}</div>` : ""}
 
   <table>
     <thead><tr>

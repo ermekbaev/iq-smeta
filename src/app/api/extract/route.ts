@@ -18,7 +18,7 @@ export async function POST(req: Request) {
   }
 
   try {
-    const items = await ai.llm.extractItems(parsed.data.text);
+    const { client, items } = await ai.llm.extractItems(parsed.data.text);
     if (items.length === 0) {
       // PLAN 3.4a — внятная ошибка вместо молчания
       return NextResponse.json(
@@ -26,7 +26,7 @@ export async function POST(req: Request) {
         { status: 422 }
       );
     }
-    return NextResponse.json({ ok: true, items });
+    return NextResponse.json({ ok: true, items, client });
   } catch {
     return NextResponse.json(
       { error: "Сбой извлечения позиций. Попробуйте ещё раз." },
