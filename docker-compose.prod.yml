@@ -1,0 +1,40 @@
+# Прод-стек IQ SMETA на одном сервере: приложение + Postgres(pgvector) + Caddy(SSL).
+# Запуск: docker compose -f docker-compose.prod.yml up -d --build
+services:
+  db:
+    image: pgvector/pgvector:pg16
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: iqsmeta
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-iqsmeta}
+      POSTGRES_DB: iqsmeta
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+  app:
+    build: .
+    restart: unless-stopped
+    env_file: .env
+    depends_on:
+      - db
+    # временный порт для проверки до привязки домена (потом можно убрать)
+    ports:
+      - "3000:3000"
+
+  caddy:
+    image: caddy:2
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - app
+
+volumes:
+  pgdata:
+  caddy_data:
+  caddy_config:
