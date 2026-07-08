@@ -12,6 +12,7 @@
     "db:up": "docker compose up -d",
     "db:migrate": "prisma migrate dev",
     "db:seed": "prisma db seed",
+    "reindex": "tsx scripts/reindex-embeddings.ts",
     "postinstall": "prisma generate"
   },
   "dependencies": {
