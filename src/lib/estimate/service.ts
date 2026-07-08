@@ -20,6 +20,7 @@ export interface DraftLine {
 
 export interface CreateEstimateInput {
   title: string;
+  objectName?: string | null;
   clientName?: string | null;
   /** Логотип КП (data URL), загруженный при создании. */
   logo?: string | null;
@@ -41,6 +42,7 @@ export async function createEstimate(
       data: {
         userId,
         title: input.title,
+        objectName: input.objectName ?? null,
         clientName: input.clientName ?? null,
         logo: input.logo ?? null,
         total,
@@ -79,6 +81,7 @@ export async function createEstimate(
 
 export interface UpdateEstimateInput {
   title: string;
+  objectName?: string | null;
   clientName?: string | null;
   /** Логотип КП (data URL). undefined — не трогать; null/строка — заменить. */
   logo?: string | null;
@@ -100,6 +103,7 @@ export async function updateEstimate(
       where: { id },
       data: {
         title: input.title,
+        objectName: input.objectName ?? null,
         clientName: input.clientName ?? null,
         // logo передан (в т.ч. null) — обновляем; undefined — оставляем как есть
         ...(input.logo !== undefined ? { logo: input.logo } : {}),

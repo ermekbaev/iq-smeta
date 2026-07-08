@@ -38,6 +38,7 @@ export default async function EstimateDetail({
           <p className="text-sm text-gray-500">
             № {estimate.id.slice(-6).toUpperCase()} ·{" "}
             {estimate.createdAt.toLocaleDateString("ru-RU")}
+            {estimate.objectName ? ` · ${estimate.objectName}` : ""}
             {estimate.clientName ? ` · ${estimate.clientName}` : ""}
           </p>
         </div>

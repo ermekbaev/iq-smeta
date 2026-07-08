@@ -36,6 +36,7 @@ export default async function EstimateEditPage({
       <EstimateEditor
         id={id}
         initialTitle={estimate.title}
+        initialObject={estimate.objectName ?? ""}
         initialClient={estimate.clientName ?? ""}
         initialLines={lines}
       />

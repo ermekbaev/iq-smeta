@@ -2,25 +2,31 @@ import { describe, it, expect } from "vitest";
 import { parseExtraction } from "./prompt";
 
 describe("parseExtraction", () => {
-  it("парсит объект {client, items}", () => {
+  it("парсит объект {object, client, items}", () => {
     const r = parseExtraction(
-      '{"client":"ИП Адилет","items":[{"name":"цемент","qty":10,"unit":"мешок"}]}'
+      '{"object":"Павлово 2","client":"ИП Адилет","items":[{"name":"цемент","qty":10,"unit":"мешок"}]}'
     );
     expect(r).toEqual({
+      object: "Павлово 2",
       client: "ИП Адилет",
       items: [{ name: "цемент", qty: 10, unit: "шт" }],
     });
   });
 
-  it("client=null, когда заказчик не назван", () => {
+  it("object/client=null, когда не названы", () => {
     const r = parseExtraction('{"client":null,"items":[{"name":"песок","qty":3,"unit":"куб"}]}');
+    expect(r.object).toBeNull();
     expect(r.client).toBeNull();
     expect(r.items).toEqual([{ name: "песок", qty: 3, unit: "м3" }]);
   });
 
-  it("голый массив (старый формат) → client null", () => {
+  it("голый массив (старый формат) → object/client null", () => {
     const r = parseExtraction('[{"name":"цемент","qty":10,"unit":"мешок"}]');
-    expect(r).toEqual({ client: null, items: [{ name: "цемент", qty: 10, unit: "шт" }] });
+    expect(r).toEqual({
+      object: null,
+      client: null,
+      items: [{ name: "цемент", qty: 10, unit: "шт" }],
+    });
   });
 
   it("снимает markdown-обёртку ```json", () => {
@@ -60,8 +66,8 @@ describe("parseExtraction", () => {
   });
 
   it("невалидный ввод → пустой результат", () => {
-    expect(parseExtraction("извините, не понял")).toEqual({ client: null, items: [] });
-    expect(parseExtraction("")).toEqual({ client: null, items: [] });
+    expect(parseExtraction("извините, не понял")).toEqual({ object: null, client: null, items: [] });
+    expect(parseExtraction("")).toEqual({ object: null, client: null, items: [] });
   });
 
   it("произнесённая цена подхватывается, null/мусор — игнорируется", () => {

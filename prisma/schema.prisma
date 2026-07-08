@@ -72,6 +72,7 @@ model Estimate {
   userId     String         @map("user_id")
   user       User           @relation(fields: [userId], references: [id], onDelete: Cascade)
   title      String
+  objectName String?        @map("object_name")
   clientName String?        @map("client_name")
   // Логотип для КП (data URL). Реквизиты/печать/подпись — в конфиге бренда (src/lib/brand).
   logo       String?        @db.Text

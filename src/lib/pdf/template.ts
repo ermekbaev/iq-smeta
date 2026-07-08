@@ -9,6 +9,9 @@ export interface EstimatePdfData {
   number: string;
   date: string;
   title: string;
+  /** Объект/название — строка «Объект —». */
+  objectName?: string | null;
+  /** Заказчик — строка «Заказчик:». */
   clientName?: string | null;
   groups: EstimateGroup[];
   total: number;
@@ -103,7 +106,8 @@ export function estimateHtml(d: EstimatePdfData): string {
   </div>
 
   <h1>${esc(d.title)}</h1>
-  ${d.clientName ? `<div class="object">Объект — ${esc(d.clientName)}</div>` : ""}
+  ${d.objectName ? `<div class="object">Объект — ${esc(d.objectName)}</div>` : ""}
+  ${d.clientName ? `<div class="object">Заказчик: ${esc(d.clientName)}</div>` : ""}
 
   <table>
     <thead><tr>

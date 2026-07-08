@@ -33,6 +33,7 @@ export async function GET(
     number: estimate.id.slice(-6).toUpperCase(),
     date,
     title: estimate.title,
+    objectName: estimate.objectName,
     clientName: estimate.clientName,
     groups: groupByCategory(items),
     total: Number(estimate.total),
@@ -40,9 +41,9 @@ export async function GET(
     company,
   });
 
-  // Имя файла: IQsmeta_<объект/заказчик>_<дата>.pdf
-  // Объект — заказчик, если задан, иначе название сметы.
-  const object = (estimate.clientName || estimate.title || "смета")
+  // Имя файла: IQsmeta_<объект>_<дата>.pdf
+  // Объект — название объекта (иначе заказчик, иначе название сметы).
+  const object = (estimate.objectName || estimate.clientName || estimate.title || "смета")
     .replace(/[\/\\:*?"<>|\r\n]+/g, " ") // убрать недопустимые в имени файла
     .replace(/\s+/g, " ")
     .trim();

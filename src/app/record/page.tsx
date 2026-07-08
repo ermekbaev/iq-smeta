@@ -38,6 +38,7 @@ export default function RecordPage() {
   const [text, setText] = useState("");
   const [lines, setLines] = useState<Line[]>([]);
   const [title, setTitle] = useState("Смета");
+  const [objectName, setObjectName] = useState("");
   const [clientName, setClientName] = useState("");
   const [logo, setLogo] = useState<string | null>(null);
 
@@ -104,7 +105,8 @@ export default function RecordPage() {
         setBusy(null);
         return setError(exData.error ?? "Не удалось выделить позиции.");
       }
-      // заказчик из речи («смета для ИП Адилет») → поле КП; не затираем ручной ввод
+      // объект и заказчик из речи → поля КП; не затираем ручной ввод
+      if (exData.object) setObjectName((prev) => prev || exData.object);
       if (exData.client) setClientName((prev) => prev || exData.client);
 
       setBusy("Подбираю по прайсу…");
@@ -198,6 +200,7 @@ export default function RecordPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           title: title || "Смета",
+          objectName: objectName || null,
           clientName: clientName || null,
           logo,
           lines: lines.map((l) => ({
@@ -297,8 +300,18 @@ export default function RecordPage() {
             <label className="space-y-1">
               <span className="text-xs text-gray-500">Объект / название (необязательно)</span>
               <input
+                value={objectName}
+                onChange={(e) => setObjectName(e.target.value)}
+                placeholder="Павлово 2"
+                className="w-full rounded border border-gray-300 px-3 py-2 text-sm"
+              />
+            </label>
+            <label className="space-y-1">
+              <span className="text-xs text-gray-500">Заказчик (необязательно)</span>
+              <input
                 value={clientName}
                 onChange={(e) => setClientName(e.target.value)}
+                placeholder="ИП Адилет"
                 className="w-full rounded border border-gray-300 px-3 py-2 text-sm"
               />
             </label>

@@ -15,16 +15,19 @@ export interface EditLine {
 export default function EstimateEditor({
   id,
   initialTitle,
+  initialObject,
   initialClient,
   initialLines,
 }: {
   id: string;
   initialTitle: string;
+  initialObject: string;
   initialClient: string;
   initialLines: EditLine[];
 }) {
   const router = useRouter();
   const [title, setTitle] = useState(initialTitle);
+  const [objectName, setObjectName] = useState(initialObject);
   const [clientName, setClientName] = useState(initialClient);
   const [lines, setLines] = useState<EditLine[]>(initialLines);
   const [busy, setBusy] = useState(false);
@@ -55,6 +58,7 @@ export default function EstimateEditor({
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         title: title || "Смета",
+        objectName: objectName || null,
         clientName: clientName || null,
         lines: lines.map((l) => ({
           priceItemId: l.priceItemId,
@@ -82,12 +86,20 @@ export default function EstimateEditor({
         <p className="rounded bg-red-50 px-4 py-3 text-sm text-red-600">{error}</p>
       )}
 
-      <section className="grid gap-3 rounded-xl border bg-white p-5 sm:grid-cols-2">
+      <section className="grid gap-3 rounded-xl border bg-white p-5 sm:grid-cols-3">
         <label className="space-y-1">
           <span className="text-xs text-gray-500">Название сметы</span>
           <input
             value={title}
             onChange={(e) => setTitle(e.target.value)}
+            className="w-full rounded border border-gray-300 px-3 py-2 text-sm"
+          />
+        </label>
+        <label className="space-y-1">
+          <span className="text-xs text-gray-500">Объект / название</span>
+          <input
+            value={objectName}
+            onChange={(e) => setObjectName(e.target.value)}
             className="w-full rounded border border-gray-300 px-3 py-2 text-sm"
           />
         </label>

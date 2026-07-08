@@ -24,8 +24,8 @@ export const mockAsr: AsrProvider = {
 // Не претендует на точность — это заглушка под реальную LLM (PLAN 3.4).
 export const mockLlm: LlmProvider = {
   async extractItems(text: string): Promise<Extraction> {
-    // Заказчик: «смета для …», «заказчик …», «клиент …» до запятой/двоеточия.
-    const { client, rest: body } = stripClient(text);
+    // Объект и заказчик из начала: «смета Павлово 2 для ИП Адилет, …».
+    const { object, client, rest: body } = stripLabels(text);
 
     // \b не работает с кириллицей — разбиваем по запятым и обособленному «и»
     const chunks = body
@@ -54,19 +54,36 @@ export const mockLlm: LlmProvider = {
       };
     });
 
-    return { client, items };
+    return { object, client, items };
   },
 };
 
-// Вырезает из начала диктовки объект/название: «смета X», «объект X»,
-// «название X», «смета для X», «заказчик X», «клиент X».
-// Имя — до первой запятой/двоеточия/точки с запятой. Возвращает остаток текста.
-function stripClient(text: string): { client: string | null; rest: string } {
-  const m = text.match(
-    /^\s*(?:смета(?:\s+(?:для|на))?|объект|название|заказчик|клиент|для)\s+([^,;:.]+)[,;:.]?\s*/i
+// Снимает из начала диктовки объект и заказчика (dev-эвристика).
+// «смета Павлово 2 для ИП Адилет, …» → object="Павлово 2", client="ИП Адилет".
+function stripLabels(text: string): {
+  object: string | null;
+  client: string | null;
+  rest: string;
+} {
+  let rest = text;
+  let object: string | null = null;
+  let client: string | null = null;
+
+  // объект: «смета/объект/название X» до «для/заказчик/клиент» или пунктуации
+  const om = rest.match(
+    /^\s*(?:объект|название|смета)\s+(?!для\b|на\b|заказчик|клиент)(.+?)(?=\s+(?:для|заказчик|клиент)\b|[,;:.]|$)/i
   );
-  if (!m) return { client: null, rest: text };
-  return { client: m[1].trim(), rest: text.slice(m[0].length) };
+  if (om) {
+    object = om[1].trim();
+    rest = rest.slice(om[0].length);
+  }
+  // заказчик: «для/заказчик/клиент X» до пунктуации
+  const cm = rest.match(/^\s*[,;:.]?\s*(?:для|заказчик|клиент)\s+([^,;:.]+)[,;:.]?\s*/i);
+  if (cm) {
+    client = cm[1].trim();
+    rest = rest.slice(cm[0].length);
+  }
+  return { object, client, rest };
 }
 
 // Детерминированный псевдо-эмбеддинг: хэш символов → вектор фикс. длины.
