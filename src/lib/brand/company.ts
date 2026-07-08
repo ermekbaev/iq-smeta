@@ -13,6 +13,8 @@ export interface CompanyBrand {
   logoUrl: string;
   /** Строка контактов под названием (сайт/телефон/email). */
   contacts: string;
+  /** Контакты для шапки КП построчно, справа (название/адрес/e-mail/телефон/сайт). */
+  contactLines: string[];
   /** Строки реквизитов для подвала КП. */
   requisites: string[];
   /** Печать (data URL). */
@@ -35,6 +37,15 @@ export async function getCompanyBrand(): Promise<CompanyBrand> {
 
   const contacts = [s?.phone, s?.website, s?.email].filter(Boolean).join(" · ");
 
+  // Шапка КП (справа), как в образце заказчика: название/адрес/e-mail/тел/сайт.
+  const contactLines = [
+    s?.name,
+    s?.address,
+    s?.email ? `e-mail: ${s.email}` : "",
+    s?.phone,
+    s?.website,
+  ].filter(Boolean) as string[];
+
   const requisites: string[] = [];
   if (s?.name) requisites.push(s.name);
   const idLine = [s?.inn ? `ИНН ${s.inn}` : "", s?.ogrn ? `ОГРНИП ${s.ogrn}` : ""]
@@ -56,6 +67,7 @@ export async function getCompanyBrand(): Promise<CompanyBrand> {
     name: s?.name || "IQ SMETA",
     logoUrl: s?.logo || "",
     contacts,
+    contactLines,
     requisites,
     stampUrl: s?.stamp || "",
     signatureUrl: s?.signature || "",
