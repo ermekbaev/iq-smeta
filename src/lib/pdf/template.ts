@@ -34,10 +34,12 @@ function imgSrc(src: string | null | undefined): string {
 
 export function estimateHtml(d: EstimatePdfData): string {
   // Плоская таблица позиций — как в образце заказчика (без разделов и подытогов).
+  // Таблица с разделами: заголовок раздела + позиции + «Итого по разделу».
   const rows = d.groups
-    .flatMap((g) => g.lines)
-    .map(
-      (l) => `
+    .map((g) => {
+      const lines = g.lines
+        .map(
+          (l) => `
         <tr>
           <td>${esc(l.name)}</td>
           <td class="c">${money(l.qty)}</td>
@@ -45,7 +47,13 @@ export function estimateHtml(d: EstimatePdfData): string {
           <td class="r">${money(l.price)}</td>
           <td class="r">${money(l.sum)}</td>
         </tr>`
-    )
+        )
+        .join("");
+      return `
+      <tr class="group"><td colspan="5">${esc(g.label)}</td></tr>
+      ${lines}
+      <tr class="subtotal"><td class="r" colspan="4">Итого по разделу</td><td class="r">${money(g.subtotal)}</td></tr>`;
+    })
     .join("");
 
   // Общая стоимость работ (без НДС): сумма разделов-работ; если работы не
@@ -78,6 +86,8 @@ export function estimateHtml(d: EstimatePdfData): string {
   th.name { text-align: left; }
   td.c { text-align: center; white-space: nowrap; }
   td.r, th.r { text-align: right; white-space: nowrap; }
+  tr.group td { background: #eef2ff; font-weight: 700; }
+  tr.subtotal td { background: #fafafa; font-weight: 600; }
   tr.total td { font-weight: 700; }
   tr.total td.lbl { text-align: right; }
   .sign { position: relative; margin-top: 64px; font-size: 13px; min-height: 130px; }
