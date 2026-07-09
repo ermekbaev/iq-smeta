@@ -65,8 +65,14 @@ export function estimateHtml(d: EstimatePdfData): string {
     .join("");
 
   // Итоги: оборудование/материалы (разделы не-работы) и работы отдельно.
-  const equipmentSum = d.groups.filter((g) => !g.isWork).reduce((s, g) => s + g.subtotal, 0);
-  const worksSum = d.groups.filter((g) => g.isWork).reduce((s, g) => s + g.subtotal, 0);
+  // Сводную строку показываем только если в группе ≥2 разделов — иначе она
+  // дублирует единственное «Итого» этого раздела.
+  const equipGroups = d.groups.filter((g) => !g.isWork);
+  const workGroups = d.groups.filter((g) => g.isWork);
+  const equipmentSum = equipGroups.reduce((s, g) => s + g.subtotal, 0);
+  const worksSum = workGroups.reduce((s, g) => s + g.subtotal, 0);
+  const showEquip = equipGroups.length >= 2;
+  const showWorks = workGroups.length >= 2;
 
   const c = d.company;
   const logo = imgSrc(d.logo) || imgSrc(c.logoUrl);
@@ -121,8 +127,8 @@ export function estimateHtml(d: EstimatePdfData): string {
     </tr></thead>
     <tbody>
       ${rows}
-      ${equipmentSum > 0 ? `<tr class="total"><td class="lbl" colspan="4">Итого за оборудование и материалы:</td><td class="r">${money(equipmentSum)} ₽</td></tr>` : ""}
-      ${worksSum > 0 ? `<tr class="total"><td class="lbl" colspan="4">Итого за работы:</td><td class="r">${money(worksSum)} ₽</td></tr>` : ""}
+      ${showEquip ? `<tr class="total"><td class="lbl" colspan="4">Итого за оборудование и материалы:</td><td class="r">${money(equipmentSum)} ₽</td></tr>` : ""}
+      ${showWorks ? `<tr class="total"><td class="lbl" colspan="4">Итого за работы:</td><td class="r">${money(worksSum)} ₽</td></tr>` : ""}
       <tr class="total grand"><td class="lbl" colspan="4">Общая стоимость под ключ:</td><td class="r">${money(d.total)} ₽</td></tr>
     </tbody>
   </table>
