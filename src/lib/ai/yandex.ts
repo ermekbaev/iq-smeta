@@ -28,25 +28,52 @@ function cfg() {
   return { apiKey, folderId };
 }
 
+// Один запрос к синхронному STT v1 (лимит ~30 c / 1 МБ на запрос).
+async function sttRecognize(
+  body: Buffer,
+  fmt: string,
+  apiKey: string,
+  folderId: string
+): Promise<string> {
+  const url = `${STT_URL}?folderId=${folderId}&lang=ru-RU&format=${fmt}`;
+  const res = await fetch(url, {
+    method: "POST",
+    headers: { Authorization: `Api-Key ${apiKey}` },
+    body: body as unknown as BodyInit,
+  });
+  if (!res.ok) throw new Error(`SpeechKit ${res.status}: ${await res.text()}`);
+  const data = (await res.json()) as { result?: string };
+  return data.result ?? "";
+}
+
 export const yandexAsr: AsrProvider = {
   async transcribe(audio, opts) {
     const { apiKey, folderId } = cfg();
-    // Фронтенд пишет WAV (16-бит PCM, 16 кГц) — для SpeechKit это lpcm:
-    // снимаем 44-байтный WAV-заголовок и передаём сырой PCM + частоту.
     const isWav = opts?.mimeType?.includes("wav");
-    const body = isWav ? audio.subarray(44) : audio;
-    const fmt = isWav
-      ? "lpcm&sampleRateHertz=16000"
-      : "oggopus";
-    const url = `${STT_URL}?folderId=${folderId}&lang=ru-RU&format=${fmt}`;
-    const res = await fetch(url, {
-      method: "POST",
-      headers: { Authorization: `Api-Key ${apiKey}` },
-      body: body as unknown as BodyInit,
-    });
-    if (!res.ok) throw new Error(`SpeechKit ${res.status}: ${await res.text()}`);
-    const data = (await res.json()) as { result?: string };
-    return { text: data.result ?? "" };
+
+    if (isWav) {
+      // WAV (16-бит PCM, 16 кГц) → LPCM: снимаем 44-байтный заголовок.
+      // Синхронный STT v1 не принимает >30 c / >1 МБ, поэтому длинную запись
+      // режем на куски по ~25 c (25·16000·2 = 800 КБ < 1 МБ) и склеиваем текст.
+      const pcm = audio.subarray(44);
+      const CHUNK = 25 * 16000 * 2;
+      const parts: string[] = [];
+      for (let off = 0; off < pcm.length; off += CHUNK) {
+        const slice = pcm.subarray(off, Math.min(off + CHUNK, pcm.length));
+        const t = await sttRecognize(
+          Buffer.from(slice),
+          "lpcm&sampleRateHertz=16000",
+          apiKey,
+          folderId
+        );
+        if (t.trim()) parts.push(t.trim());
+      }
+      return { text: parts.join(" ").trim() };
+    }
+
+    // Не-WAV (ogg/opus) — одним запросом.
+    const text = await sttRecognize(audio, "oggopus", apiKey, folderId);
+    return { text };
   },
 };
 
