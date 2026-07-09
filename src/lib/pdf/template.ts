@@ -65,14 +65,10 @@ export function estimateHtml(d: EstimatePdfData): string {
     .join("");
 
   // Итоги: оборудование/материалы (разделы не-работы) и работы отдельно.
-  // Сводную строку показываем только если в группе ≥2 разделов — иначе она
-  // дублирует единственное «Итого» этого раздела.
-  const equipGroups = d.groups.filter((g) => !g.isWork);
-  const workGroups = d.groups.filter((g) => g.isWork);
-  const equipmentSum = equipGroups.reduce((s, g) => s + g.subtotal, 0);
-  const worksSum = workGroups.reduce((s, g) => s + g.subtotal, 0);
-  const showEquip = equipGroups.length >= 2;
-  const showWorks = workGroups.length >= 2;
+  const equipmentSum = d.groups.filter((g) => !g.isWork).reduce((s, g) => s + g.subtotal, 0);
+  const worksSum = d.groups.filter((g) => g.isWork).reduce((s, g) => s + g.subtotal, 0);
+  const showEquip = equipmentSum > 0;
+  const showWorks = worksSum > 0;
 
   const c = d.company;
   const logo = imgSrc(d.logo) || imgSrc(c.logoUrl);
