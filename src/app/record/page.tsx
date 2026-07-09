@@ -37,7 +37,6 @@ export default function RecordPage() {
   const [error, setError] = useState<string | null>(null);
   const [text, setText] = useState("");
   const [lines, setLines] = useState<Line[]>([]);
-  const [title, setTitle] = useState("Смета");
   const [objectName, setObjectName] = useState("");
   const [clientName, setClientName] = useState("");
   const [logo, setLogo] = useState<string | null>(null);
@@ -199,7 +198,7 @@ export default function RecordPage() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          title: title || "Смета",
+          title: objectName || "Смета",
           objectName: objectName || null,
           clientName: clientName || null,
           logo,
@@ -290,15 +289,7 @@ export default function RecordPage() {
         <div className="space-y-4">
           <section className="grid gap-3 rounded-xl border bg-white p-5 sm:grid-cols-2">
             <label className="space-y-1">
-              <span className="text-xs text-gray-500">Название сметы</span>
-              <input
-                value={title}
-                onChange={(e) => setTitle(e.target.value)}
-                className="w-full rounded border border-gray-300 px-3 py-2 text-sm"
-              />
-            </label>
-            <label className="space-y-1">
-              <span className="text-xs text-gray-500">Объект / название (необязательно)</span>
+              <span className="text-xs text-gray-500">Объект / название</span>
               <input
                 value={objectName}
                 onChange={(e) => setObjectName(e.target.value)}

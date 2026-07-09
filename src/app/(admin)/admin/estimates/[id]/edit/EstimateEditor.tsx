@@ -26,7 +26,7 @@ export default function EstimateEditor({
   initialLines: EditLine[];
 }) {
   const router = useRouter();
-  const [title, setTitle] = useState(initialTitle);
+  const [title] = useState(initialTitle);
   const [objectName, setObjectName] = useState(initialObject);
   const [clientName, setClientName] = useState(initialClient);
   const [lines, setLines] = useState<EditLine[]>(initialLines);
@@ -57,7 +57,7 @@ export default function EstimateEditor({
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        title: title || "Смета",
+        title: objectName || title || "Смета",
         objectName: objectName || null,
         clientName: clientName || null,
         lines: lines.map((l) => ({
@@ -86,15 +86,7 @@ export default function EstimateEditor({
         <p className="rounded bg-red-50 px-4 py-3 text-sm text-red-600">{error}</p>
       )}
 
-      <section className="grid gap-3 rounded-xl border bg-white p-5 sm:grid-cols-3">
-        <label className="space-y-1">
-          <span className="text-xs text-gray-500">Название сметы</span>
-          <input
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-            className="w-full rounded border border-gray-300 px-3 py-2 text-sm"
-          />
-        </label>
+      <section className="grid gap-3 rounded-xl border bg-white p-5 sm:grid-cols-2">
         <label className="space-y-1">
           <span className="text-xs text-gray-500">Объект / название</span>
           <input
