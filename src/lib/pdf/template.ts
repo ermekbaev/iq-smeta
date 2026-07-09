@@ -35,16 +35,21 @@ function imgSrc(src: string | null | undefined): string {
   return src && /^(data:|https?:)/.test(src) ? src : "";
 }
 
+// Первая буква — заглавная (остальное не трогаем).
+function cap(s: string): string {
+  const t = s.trim();
+  return t ? t.charAt(0).toUpperCase() + t.slice(1) : t;
+}
+
 export function estimateHtml(d: EstimatePdfData): string {
-  // Плоская таблица позиций — как в образце заказчика (без разделов и подытогов).
-  // Таблица с разделами: заголовок раздела + позиции + «Итого по разделу».
+  // Таблица с разделами: заголовок раздела + позиции + «Итого» по разделу.
   const rows = d.groups
     .map((g) => {
       const lines = g.lines
         .map(
           (l) => `
         <tr>
-          <td>${esc(l.name)}</td>
+          <td>${esc(cap(l.name))}</td>
           <td class="c">${money(l.qty)}</td>
           <td class="c">${esc(l.unit)}</td>
           <td class="r">${money(l.price)}</td>
@@ -53,16 +58,15 @@ export function estimateHtml(d: EstimatePdfData): string {
         )
         .join("");
       return `
-      <tr class="group"><td colspan="5">${esc(g.label)}</td></tr>
+      <tr class="group"><td colspan="5">${esc(cap(g.label))}</td></tr>
       ${lines}
-      <tr class="subtotal"><td class="r" colspan="4">Итого по разделу</td><td class="r">${money(g.subtotal)}</td></tr>`;
+      <tr class="subtotal"><td class="r" colspan="4">Итого</td><td class="r">${money(g.subtotal)}</td></tr>`;
     })
     .join("");
 
-  // Общая стоимость работ (без НДС): сумма разделов-работ; если работы не
-  // размечены — совпадает с итогом (как в образце, где всё — работы).
+  // Итоги: оборудование/материалы (разделы не-работы) и работы отдельно.
+  const equipmentSum = d.groups.filter((g) => !g.isWork).reduce((s, g) => s + g.subtotal, 0);
   const worksSum = d.groups.filter((g) => g.isWork).reduce((s, g) => s + g.subtotal, 0);
-  const works = worksSum > 0 ? worksSum : d.total;
 
   const c = d.company;
   const logo = imgSrc(d.logo) || imgSrc(c.logoUrl);
@@ -93,6 +97,7 @@ export function estimateHtml(d: EstimatePdfData): string {
   tr.subtotal td { background: #fafafa; font-weight: 600; }
   tr.total td { font-weight: 700; }
   tr.total td.lbl { text-align: right; }
+  tr.grand td { font-size: 14px; background: #eef2ff; }
   .sign { position: relative; margin-top: 64px; font-size: 13px; min-height: 130px; }
   .sign .line { display: inline-block; position: relative; }
   .sign .sig { position: absolute; left: -6px; bottom: 8px; height: 60px; width: auto; object-fit: contain; }
@@ -105,9 +110,9 @@ export function estimateHtml(d: EstimatePdfData): string {
     <div class="contacts">${contactLines}</div>
   </div>
 
-  <h1>${esc(d.title)}</h1>
-  ${d.objectName ? `<div class="object">Объект — ${esc(d.objectName)}</div>` : ""}
-  ${d.clientName ? `<div class="object">Заказчик: ${esc(d.clientName)}</div>` : ""}
+  <h1>Коммерческое предложение</h1>
+  ${d.objectName ? `<div class="object">по объекту: ${esc(cap(d.objectName))}</div>` : ""}
+  ${d.clientName ? `<div class="object">для: ${esc(cap(d.clientName))}</div>` : ""}
 
   <table>
     <thead><tr>
@@ -116,8 +121,9 @@ export function estimateHtml(d: EstimatePdfData): string {
     </tr></thead>
     <tbody>
       ${rows}
-      <tr class="total"><td class="lbl" colspan="4">Итого без НДС:</td><td class="r">${money(d.total)} ₽</td></tr>
-      <tr class="total"><td class="lbl" colspan="4">Общая стоимость работ (без НДС):</td><td class="r">${money(works)} ₽</td></tr>
+      ${equipmentSum > 0 ? `<tr class="total"><td class="lbl" colspan="4">Итого за оборудование и материалы:</td><td class="r">${money(equipmentSum)} ₽</td></tr>` : ""}
+      ${worksSum > 0 ? `<tr class="total"><td class="lbl" colspan="4">Итого за работы:</td><td class="r">${money(worksSum)} ₽</td></tr>` : ""}
+      <tr class="total grand"><td class="lbl" colspan="4">Общая стоимость под ключ:</td><td class="r">${money(d.total)} ₽</td></tr>
     </tbody>
   </table>
 

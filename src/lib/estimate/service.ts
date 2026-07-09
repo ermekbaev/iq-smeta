@@ -149,9 +149,22 @@ export interface EstimateGroup {
   subtotal: number;
 }
 
-/** Относится ли раздел к работам/услугам (для итога «Работы» отдельно от оборудования). */
+/** Относится ли текст (раздел или название) к работам/услугам. */
 export function isWorkCategory(category: string): boolean {
-  return /работ|услуг|монтаж|доставк|накладн|земляны|транш|пусконаладк/i.test(category);
+  return /работ|услуг|монтаж|доставк|накладн|земляны|транш|пусконаладк|прокладк|копк|бурени/i.test(
+    category
+  );
+}
+
+/**
+ * Категория позиции для группировки. Если явной категории нет (ручной ввод/
+ * голос → «Прочее»), классифицируем по названию: монтаж/работы → «Работы»,
+ * иначе → «Оборудование и материалы».
+ */
+function effectiveCategory(category: string, name: string): string {
+  const c = (category || "").trim();
+  if (c && c.toLowerCase() !== "прочее") return c;
+  return isWorkCategory(name) ? "Работы" : "Оборудование и материалы";
 }
 
 /**
@@ -171,7 +184,7 @@ export function groupByCategory(
 ): EstimateGroup[] {
   const map = new Map<string, EstimateLineView[]>();
   for (const it of items) {
-    const cat = it.category || "Прочее";
+    const cat = effectiveCategory(it.category, it.name);
     const line: EstimateLineView = {
       article: it.article ?? null,
       name: it.name,
@@ -184,12 +197,13 @@ export function groupByCategory(
     arr.push(line);
     map.set(cat, arr);
   }
-  // Map сохраняет порядок вставки → разделы идут как в прайсе
-  return Array.from(map.entries()).map(([category, lines]) => ({
+  const groups = Array.from(map.entries()).map(([category, lines]) => ({
     category,
     label: category,
     isWork: isWorkCategory(category),
     lines,
     subtotal: round2(lines.reduce((a, l) => a + l.sum, 0)),
   }));
+  // Оборудование/материалы — сверху, работы — снизу (перед итогами).
+  return groups.sort((a, b) => Number(a.isWork) - Number(b.isWork));
 }
