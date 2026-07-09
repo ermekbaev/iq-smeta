@@ -27,7 +27,8 @@ export async function POST(req: Request) {
       );
     }
     return NextResponse.json({ ok: true, text });
-  } catch {
+  } catch (e) {
+    console.error("ASR error:", e);
     return NextResponse.json(
       { error: "Сбой распознавания. Попробуйте ещё раз." },
       { status: 502 }

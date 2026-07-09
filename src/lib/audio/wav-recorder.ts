@@ -17,6 +17,9 @@ export class WavRecorder {
   async start(): Promise<void> {
     this.stream = await navigator.mediaDevices.getUserMedia({ audio: true });
     this.ctx = new AudioContext();
+    // На Android/мобильных AudioContext стартует в "suspended" — без resume()
+    // onaudioprocess не срабатывает и запись выходит пустой.
+    if (this.ctx.state === "suspended") await this.ctx.resume();
     this.srcRate = this.ctx.sampleRate;
     this.source = this.ctx.createMediaStreamSource(this.stream);
     this.processor = this.ctx.createScriptProcessor(4096, 1, 1);
@@ -28,14 +31,16 @@ export class WavRecorder {
     this.processor.connect(this.ctx.destination);
   }
 
-  /** Останавливает запись и возвращает WAV-Blob. */
-  async stop(): Promise<Blob> {
+  /** Останавливает запись и возвращает WAV-Blob (null — если звук не записался). */
+  async stop(): Promise<Blob | null> {
     this.processor?.disconnect();
     this.source?.disconnect();
     this.stream?.getTracks().forEach((t) => t.stop());
     await this.ctx?.close();
 
     const merged = mergeChunks(this.chunks);
+    // Пустая/почти пустая запись (мик не сработал) — не шлём в ASR.
+    if (merged.length < TARGET_RATE * 0.2) return null;
     const down = downsample(merged, this.srcRate, TARGET_RATE);
     return encodeWav(down, TARGET_RATE);
   }
