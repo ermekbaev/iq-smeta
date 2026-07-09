@@ -42,12 +42,10 @@ function cap(s: string): string {
 }
 
 export function estimateHtml(d: EstimatePdfData): string {
-  // Таблица с разделами: заголовок раздела + позиции + «Итого» по разделу.
-  const rows = d.groups
-    .map((g) => {
-      const lines = g.lines
-        .map(
-          (l) => `
+  const renderLines = (lines: EstimateGroup["lines"]) =>
+    lines
+      .map(
+        (l) => `
         <tr>
           <td>${esc(cap(l.name))}</td>
           <td class="c">${money(l.qty)}</td>
@@ -55,20 +53,32 @@ export function estimateHtml(d: EstimatePdfData): string {
           <td class="r">${money(l.price)}</td>
           <td class="r">${money(l.sum)}</td>
         </tr>`
-        )
-        .join("");
-      return `
-      <tr class="group"><td colspan="5">${esc(cap(g.label))}</td></tr>
-      ${lines}
-      <tr class="subtotal"><td class="r" colspan="4">Итого</td><td class="r">${money(g.subtotal)}</td></tr>`;
-    })
-    .join("");
+      )
+      .join("");
 
-  // Итоги: оборудование/материалы (разделы не-работы) и работы отдельно.
-  const equipmentSum = d.groups.filter((g) => !g.isWork).reduce((s, g) => s + g.subtotal, 0);
-  const worksSum = d.groups.filter((g) => g.isWork).reduce((s, g) => s + g.subtotal, 0);
-  const showEquip = equipmentSum > 0;
-  const showWorks = worksSum > 0;
+  // Блок «Оборудование/материалы» или «Работы»: разделы-заголовки + позиции,
+  // и ОДИН именной итог на весь блок (без подытогов по каждому разделу).
+  const section = (groups: EstimateGroup[], totalLabel: string, sum: number) =>
+    groups.length
+      ? groups
+          .map(
+            (g) => `
+      <tr class="group"><td colspan="5">${esc(cap(g.label))}</td></tr>
+      ${renderLines(g.lines)}`
+          )
+          .join("") +
+        `
+      <tr class="subtotal"><td class="r" colspan="4">${totalLabel}</td><td class="r">${money(sum)} ₽</td></tr>`
+      : "";
+
+  const equipGroups = d.groups.filter((g) => !g.isWork);
+  const workGroups = d.groups.filter((g) => g.isWork);
+  const equipmentSum = equipGroups.reduce((s, g) => s + g.subtotal, 0);
+  const worksSum = workGroups.reduce((s, g) => s + g.subtotal, 0);
+
+  const rows =
+    section(equipGroups, "Итого за оборудование и материалы", equipmentSum) +
+    section(workGroups, "Итого за работы", worksSum);
 
   const c = d.company;
   const logo = imgSrc(d.logo) || imgSrc(c.logoUrl);
@@ -123,8 +133,6 @@ export function estimateHtml(d: EstimatePdfData): string {
     </tr></thead>
     <tbody>
       ${rows}
-      ${showEquip ? `<tr class="total"><td class="lbl" colspan="4">Итого за оборудование и материалы:</td><td class="r">${money(equipmentSum)} ₽</td></tr>` : ""}
-      ${showWorks ? `<tr class="total"><td class="lbl" colspan="4">Итого за работы:</td><td class="r">${money(worksSum)} ₽</td></tr>` : ""}
       <tr class="total grand"><td class="lbl" colspan="4">Общая стоимость под ключ:</td><td class="r">${money(d.total)} ₽</td></tr>
     </tbody>
   </table>
