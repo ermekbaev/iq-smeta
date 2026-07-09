@@ -73,6 +73,8 @@ model Estimate {
   user       User           @relation(fields: [userId], references: [id], onDelete: Cascade)
   title      String
   objectName String?        @map("object_name")
+  // Предмет КП — идёт после слов «Коммерческое предложение» («по организации системы …»).
+  subject    String?
   clientName String?        @map("client_name")
   // Логотип для КП (data URL). Реквизиты/печать/подпись — в конфиге бренда (src/lib/brand).
   logo       String?        @db.Text

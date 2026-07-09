@@ -38,6 +38,7 @@ export default function RecordPage() {
   const [text, setText] = useState("");
   const [lines, setLines] = useState<Line[]>([]);
   const [objectName, setObjectName] = useState("");
+  const [subject, setSubject] = useState("");
   const [clientName, setClientName] = useState("");
   const [logo, setLogo] = useState<string | null>(null);
 
@@ -200,6 +201,7 @@ export default function RecordPage() {
         body: JSON.stringify({
           title: objectName || "Смета",
           objectName: objectName || null,
+          subject: subject || null,
           clientName: clientName || null,
           logo,
           lines: lines.map((l) => ({
@@ -303,6 +305,17 @@ export default function RecordPage() {
                 value={clientName}
                 onChange={(e) => setClientName(e.target.value)}
                 placeholder="ИП Адилет"
+                className="w-full rounded border border-gray-300 px-3 py-2 text-sm"
+              />
+            </label>
+            <label className="space-y-1 sm:col-span-2">
+              <span className="text-xs text-gray-500">
+                Предмет — после слов «Коммерческое предложение»
+              </span>
+              <input
+                value={subject}
+                onChange={(e) => setSubject(e.target.value)}
+                placeholder="по организации системы автоматического полива"
                 className="w-full rounded border border-gray-300 px-3 py-2 text-sm"
               />
             </label>

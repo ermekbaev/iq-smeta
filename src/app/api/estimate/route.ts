@@ -18,6 +18,7 @@ const lineSchema = z.object({
 const schema = z.object({
   title: z.string().min(1),
   objectName: z.string().nullable().optional(),
+  subject: z.string().max(300).nullable().optional(),
   clientName: z.string().nullable().optional(),
   // логотип КП — data URL (ограничиваем размер, чтобы не раздувать запрос)
   logo: z.string().max(4_000_000).nullable().optional(),

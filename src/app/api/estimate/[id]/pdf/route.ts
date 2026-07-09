@@ -34,6 +34,7 @@ export async function GET(
     date,
     title: estimate.title,
     objectName: estimate.objectName,
+    subject: estimate.subject,
     clientName: estimate.clientName,
     groups: groupByCategory(items),
     total: Number(estimate.total),

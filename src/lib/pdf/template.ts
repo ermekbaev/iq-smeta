@@ -11,6 +11,8 @@ export interface EstimatePdfData {
   title: string;
   /** Объект/название — строка «Объект —». */
   objectName?: string | null;
+  /** Предмет КП — идёт после слов «Коммерческое предложение». */
+  subject?: string | null;
   /** Заказчик — строка «Заказчик:». */
   clientName?: string | null;
   groups: EstimateGroup[];
@@ -39,6 +41,11 @@ function imgSrc(src: string | null | undefined): string {
 function cap(s: string): string {
   const t = s.trim();
   return t ? t.charAt(0).toUpperCase() + t.slice(1) : t;
+}
+
+// Полностью в верхний регистр (название объекта в КП).
+function upper(s: string): string {
+  return s.trim().toUpperCase();
 }
 
 export function estimateHtml(d: EstimatePdfData): string {
@@ -79,6 +86,15 @@ export function estimateHtml(d: EstimatePdfData): string {
   const rows =
     section(equipGroups, "Итого за оборудование и материалы", equipmentSum) +
     section(workGroups, "Итого за работы", worksSum);
+
+  // Заголовок КП: «Коммерческое предложение» + предмет («по организации системы …»).
+  // Если предмет уже начинается с этих слов — не дублируем.
+  const subj = (d.subject ?? "").trim();
+  const heading = !subj
+    ? "Коммерческое предложение"
+    : /^коммерческое предложение/i.test(subj)
+      ? cap(subj)
+      : `Коммерческое предложение ${subj}`;
 
   const c = d.company;
   const logo = imgSrc(d.logo) || imgSrc(c.logoUrl);
@@ -122,8 +138,8 @@ export function estimateHtml(d: EstimatePdfData): string {
     <div class="contacts">${contactLines}</div>
   </div>
 
-  <h1>Коммерческое предложение</h1>
-  ${d.objectName ? `<div class="object">по объекту: ${esc(cap(d.objectName))}</div>` : ""}
+  <h1>${esc(heading)}</h1>
+  ${d.objectName ? `<div class="object">по объекту: <b>${esc(upper(d.objectName))}</b></div>` : ""}
   ${d.clientName ? `<div class="object">для: ${esc(cap(d.clientName))}</div>` : ""}
 
   <table>
