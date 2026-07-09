@@ -48,6 +48,18 @@ function upper(s: string): string {
   return s.trim().toUpperCase();
 }
 
+/**
+ * Убирает слово «объект» из начала названия, чтобы в КП не выходило
+ * «по объекту: ОБЪЕКТ ПАВЛОВО». Заодно снимает предлог после него:
+ * «объект на Павлово» → «Павлово». Обычное название не трогает.
+ */
+function stripObjectWord(s: string): string {
+  const t = s.trim();
+  const m = t.match(/^(?:по\s+|на\s+)?объект[а-яё]*\s*[:\-–—]?\s*(.+)$/iu);
+  if (!m) return t;
+  return m[1].replace(/^(?:на|в)\s+/iu, "").trim() || t;
+}
+
 export function estimateHtml(d: EstimatePdfData): string {
   const renderLines = (lines: EstimateGroup["lines"]) =>
     lines
@@ -126,10 +138,10 @@ export function estimateHtml(d: EstimatePdfData): string {
   tr.total td { font-weight: 700; }
   tr.total td.lbl { text-align: right; }
   tr.grand td { font-size: 14px; background: #eef2ff; }
-  .sign { position: relative; margin-top: 64px; font-size: 13px; min-height: 130px; }
+  .sign { position: relative; margin-top: 64px; font-size: 13px; min-height: 160px; }
   .sign .line { display: inline-block; position: relative; }
   .sign .sig { position: absolute; left: -6px; bottom: 8px; height: 60px; width: auto; object-fit: contain; }
-  .sign .stamp { position: absolute; left: 235px; bottom: -78px; height: 125px; width: 125px; object-fit: contain; opacity: .92; }
+  .sign .stamp { position: absolute; left: 240px; bottom: -95px; height: 155px; width: 155px; object-fit: contain; opacity: .92; }
 </style></head><body>
   <div class="head">
     <div>
@@ -139,7 +151,7 @@ export function estimateHtml(d: EstimatePdfData): string {
   </div>
 
   <h1>${esc(heading)}</h1>
-  ${d.objectName ? `<div class="object">по объекту: <b>${esc(upper(d.objectName))}</b></div>` : ""}
+  ${d.objectName ? `<div class="object">по объекту: <b>${esc(upper(stripObjectWord(d.objectName)))}</b></div>` : ""}
   ${d.clientName ? `<div class="object">для: ${esc(cap(d.clientName))}</div>` : ""}
 
   <table>
