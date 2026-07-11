@@ -51,7 +51,10 @@ export default function PriceManager() {
       return;
     }
     setMsg(
-      `Готово: ${data.imported} позиций (новых ${data.created}, обновлено ${data.updated}, пропущено ${data.skipped}).`
+      `Готово: ${data.imported} позиций (новых ${data.created}, обновлено ${data.updated}, пропущено ${data.skipped}).` +
+        (data.embedFailed
+          ? " ⚠️ Позиции сохранены, но поиск по ним появится после переиндексации (сервис ИИ был недоступен)."
+          : "")
     );
     setFile(null);
     startTransition(() => void load(q));

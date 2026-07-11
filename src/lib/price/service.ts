@@ -6,6 +6,8 @@ import type { ParsedRow } from "./parse";
 export interface ImportResult {
   created: number;
   updated: number;
+  /** true — позиции сохранены, но эмбеддинги не построились (нужна переиндексация). */
+  embedFailed: boolean;
 }
 
 /**
@@ -48,12 +50,18 @@ export async function importPrice(userId: string, rows: ParsedRow[]): Promise<Im
     saved.push({ id: item.id, text: [row.article, row.name].filter(Boolean).join(" ") });
   }
 
-  // 2) эмбеддинги пачкой (PLAN 3.2): один батч-запрос вместо N одиночных —
-  // выдерживает большой прайс без упора в rate-limit (PLAN 8).
-  const vectors = await ai.embeddings.embedBatch(saved.map((s) => s.text));
-  for (let i = 0; i < saved.length; i++) {
-    await setEmbedding(saved[i].id, vectors[i]);
+  // 2) эмбеддинги пачкой (PLAN 3.2). Если провайдер упал — позиции уже сохранены;
+  // не роняем весь импорт, а сигналим embedFailed → предложим переиндексацию.
+  let embedFailed = false;
+  try {
+    const vectors = await ai.embeddings.embedBatch(saved.map((s) => s.text));
+    for (let i = 0; i < saved.length; i++) {
+      await setEmbedding(saved[i].id, vectors[i]);
+    }
+  } catch (e) {
+    console.error("Import: ошибка эмбеддингов, позиции сохранены без векторов:", e);
+    embedFailed = true;
   }
 
-  return { created, updated };
+  return { created, updated, embedFailed };
 }

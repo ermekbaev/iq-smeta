@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { requireUser } from "@/lib/auth-helpers";
+import { rateLimit } from "@/lib/rate-limit";
 import { ai } from "@/lib/ai";
 
 export const runtime = "nodejs";
@@ -11,6 +12,15 @@ const schema = z.object({ text: z.string().min(1) });
 export async function POST(req: Request) {
   const gate = await requireUser();
   if (gate instanceof NextResponse) return gate;
+  const { userId } = gate;
+
+  const rl = rateLimit(`extract:${userId}`, 30, 60_000);
+  if (!rl.ok) {
+    return NextResponse.json(
+      { error: "Слишком много запросов, подождите немного." },
+      { status: 429, headers: { "Retry-After": String(rl.retryAfter) } }
+    );
+  }
 
   const parsed = schema.safeParse(await req.json());
   if (!parsed.success) {

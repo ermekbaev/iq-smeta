@@ -2,13 +2,14 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import bcrypt from "bcryptjs";
 import { z } from "zod";
+import { Prisma } from "@prisma/client";
 import { signIn, auth } from "@/auth";
 import { AuthError } from "next-auth";
 import { prisma } from "@/lib/prisma";
 
 const schema = z.object({
   email: z.string().email(),
-  password: z.string().min(6),
+  password: z.string().min(8),
   code: z.string().min(1),
 });
 
@@ -16,7 +17,7 @@ const schema = z.object({
 const ERRORS: Record<string, string> = {
   code: "Неверный код-приглашение",
   exists: "Аккаунт с таким email уже есть",
-  invalid: "Проверьте email и пароль (пароль от 6 символов)",
+  invalid: "Проверьте email и пароль (пароль от 8 символов)",
   disabled: "Регистрация сейчас недоступна",
 };
 
@@ -48,7 +49,15 @@ export default async function RegisterPage({
     if (exists) redirect("/register?error=exists");
 
     const passwordHash = await bcrypt.hash(password, 10);
-    await prisma.user.create({ data: { email, passwordHash } });
+    try {
+      await prisma.user.create({ data: { email, passwordHash } });
+    } catch (e) {
+      // гонка: email заняли между проверкой и созданием (unique violation)
+      if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === "P2002") {
+        redirect("/register?error=exists");
+      }
+      throw e;
+    }
 
     try {
       await signIn("credentials", { email, password, redirectTo: "/admin" });
@@ -87,7 +96,7 @@ export default async function RegisterPage({
             name="password"
             type="password"
             required
-            minLength={6}
+            minLength={8}
             className="w-full rounded border border-gray-300 px-3 py-2 text-gray-900 outline-none focus:border-gray-900"
           />
         </label>

@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { requireUser } from "@/lib/auth-helpers";
+import { rateLimit } from "@/lib/rate-limit";
 import { ai } from "@/lib/ai";
 
 export const runtime = "nodejs";
@@ -9,6 +10,16 @@ export const runtime = "nodejs";
 export async function POST(req: Request) {
   const gate = await requireUser();
   if (gate instanceof NextResponse) return gate;
+  const { userId } = gate;
+
+  // лимит на дорогой ИИ-роут: длинная диктовка режется на куски, поэтому щедро
+  const rl = rateLimit(`asr:${userId}`, 40, 60_000);
+  if (!rl.ok) {
+    return NextResponse.json(
+      { error: "Слишком много запросов, подождите немного." },
+      { status: 429, headers: { "Retry-After": String(rl.retryAfter) } }
+    );
+  }
 
   const form = await req.formData();
   const audio = form.get("audio");
