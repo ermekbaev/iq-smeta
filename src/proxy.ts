@@ -1,13 +1,15 @@
 import { auth } from "@/auth";
 import { NextResponse } from "next/server";
 
-// Защищаем админку, экран записи и доменные API. Публичны: /login, /api/auth/*.
+// Защищаем админку, экран записи и доменные API.
+// Публичны: /login, /register, /api/auth/*, корень.
 export default auth((req) => {
   const { pathname } = req.nextUrl;
   const isAuthed = !!req.auth;
 
   const isPublic =
     pathname === "/login" ||
+    pathname === "/register" ||
     pathname.startsWith("/api/auth") ||
     pathname === "/";
 
@@ -21,7 +23,8 @@ export default auth((req) => {
     return NextResponse.redirect(url);
   }
 
-  if (isAuthed && pathname === "/login") {
+  // залогиненного с экранов входа/регистрации уводим в админку
+  if (isAuthed && (pathname === "/login" || pathname === "/register")) {
     return NextResponse.redirect(new URL("/admin", req.nextUrl.origin));
   }
 
@@ -29,8 +32,8 @@ export default auth((req) => {
 });
 
 export const config = {
-  // исключаем статику и _next
+  // исключаем статику, _next и публичный логотип (нужен на /login и /register)
   matcher: [
-    "/((?!_next/static|_next/image|favicon.ico|manifest.json|sw.js|icon.svg|icons).*)",
+    "/((?!_next/static|_next/image|favicon.ico|manifest.json|sw.js|icon.svg|icons|logo-iqsmeta.svg).*)",
   ],
 };
