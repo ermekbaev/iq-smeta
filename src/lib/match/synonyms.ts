@@ -9,14 +9,17 @@ import { normalizeText } from "./fuzzy";
 export function applySynonyms(groups: string[][], text: string): string {
   if (groups.length === 0) return text;
 
-  const norm = normalizeText(text);
+  // сопоставление по границам слов/фраз (пробелы по краям), чтобы «бак» не
+  // цеплялся в «табак»; при этом многословные термы («гибкая подводка») работают
+  const norm = ` ${normalizeText(text)} `;
+  const has = (t: string) => norm.includes(` ${t} `);
+
   const extra = new Set<string>();
   for (const group of groups) {
     const terms = group.map((t) => normalizeText(t)).filter(Boolean);
-    const hit = terms.some((t) => norm.includes(t));
-    if (hit) for (const t of terms) if (!norm.includes(t)) extra.add(t);
+    if (terms.some(has)) for (const t of terms) if (!has(t)) extra.add(t);
   }
-  return extra.size ? `${text} ${[...extra].join(" ")}` : text;
+  return extra.size ? `${text.trim()} ${[...extra].join(" ")}` : text;
 }
 
 /** Расширяет запрос синонимами аккаунта (грузит группы из БД, применяет applySynonyms). */

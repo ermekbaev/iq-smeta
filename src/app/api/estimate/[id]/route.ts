@@ -45,7 +45,7 @@ export async function PUT(
     return NextResponse.json({ error: "Проверьте поля сметы" }, { status: 400 });
   }
 
-  await updateEstimate(id, parsed.data);
+  await updateEstimate(id, userId, parsed.data);
   return NextResponse.json({ ok: true });
 }
 

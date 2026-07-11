@@ -39,6 +39,10 @@ export async function createEstimate(
   });
   const total = round2(items.reduce((acc, i) => acc + i.sum, 0));
 
+  // Изоляция: привязываем только позиции ЭТОГО аккаунта. Чужой/несуществующий
+  // priceItemId (в т.ч. подделанный) сбрасываем в null — не даём утечь в подбор.
+  const ownPriceId = await ownPriceIdFilter(userId, input.lines);
+
   return prisma.$transaction(async (tx) => {
     const estimate = await tx.estimate.create({
       data: {
@@ -51,7 +55,7 @@ export async function createEstimate(
         total,
         items: {
           create: items.map(({ line, sum }) => ({
-            priceItemId: line.priceItemId ?? null,
+            priceItemId: ownPriceId(line.priceItemId),
             name: line.name,
             qty: line.qty,
             unit: line.unit,
@@ -66,13 +70,14 @@ export async function createEstimate(
 
     // Обучение: сказанный текст → выбранная позиция. «Последняя правка побеждает».
     for (const { line } of items) {
-      if (line.priceItemId && line.spokenText) {
+      const priceItemId = ownPriceId(line.priceItemId);
+      if (priceItemId && line.spokenText) {
         const spoken = normalizeText(line.spokenText);
         if (spoken) {
           await tx.alias.upsert({
             where: { userId_spokenText: { userId, spokenText: spoken } },
-            create: { userId, spokenText: spoken, priceItemId: line.priceItemId },
-            update: { priceItemId: line.priceItemId },
+            create: { userId, spokenText: spoken, priceItemId },
+            update: { priceItemId },
           });
         }
       }
@@ -80,6 +85,28 @@ export async function createEstimate(
 
     return estimate;
   });
+}
+
+/**
+ * Возвращает функцию, оставляющую только priceItemId, принадлежащие userId
+ * (остальные → null). Защита от привязки позиций чужого аккаунта.
+ */
+async function ownPriceIdFilter(
+  userId: string,
+  lines: DraftLine[]
+): Promise<(id?: string | null) => string | null> {
+  const requested = [...new Set(lines.map((l) => l.priceItemId).filter((x): x is string => !!x))];
+  const own = new Set(
+    requested.length
+      ? (
+          await prisma.priceItem.findMany({
+            where: { id: { in: requested }, userId },
+            select: { id: true },
+          })
+        ).map((p) => p.id)
+      : []
+  );
+  return (id?: string | null) => (id && own.has(id) ? id : null);
 }
 
 export interface UpdateEstimateInput {
@@ -96,10 +123,12 @@ export interface UpdateEstimateInput {
 /** Полное обновление сметы: заголовок, заказчик и состав позиций (с пересчётом итога). */
 export async function updateEstimate(
   id: string,
+  userId: string,
   input: UpdateEstimateInput
 ): Promise<void> {
   const items = input.lines.map((l) => ({ line: l, sum: round2(l.qty * l.price) }));
   const total = round2(items.reduce((acc, i) => acc + i.sum, 0));
+  const ownPriceId = await ownPriceIdFilter(userId, input.lines);
 
   await prisma.$transaction(async (tx) => {
     // позиции заменяем целиком — проще и предсказуемее для ручной правки
@@ -117,7 +146,7 @@ export async function updateEstimate(
         total,
         items: {
           create: items.map(({ line, sum }) => ({
-            priceItemId: line.priceItemId ?? null,
+            priceItemId: ownPriceId(line.priceItemId),
             name: line.name,
             qty: line.qty,
             unit: line.unit,
