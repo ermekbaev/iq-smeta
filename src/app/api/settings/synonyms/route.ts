@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { auth } from "@/auth";
+import { requireUser } from "@/lib/auth-helpers";
 import { prisma } from "@/lib/prisma";
 
 export const runtime = "nodejs";
@@ -25,10 +25,11 @@ function cleanTerms(terms: string[]): string[] {
 
 // GET /api/settings/synonyms — группы синонимов аккаунта
 export async function GET() {
-  const session = await auth();
-  if (!session) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+  const gate = await requireUser();
+  if (gate instanceof NextResponse) return gate;
+  const { userId } = gate;
   const items = await prisma.synonym.findMany({
-    where: { userId: session.user.id },
+    where: { userId },
     orderBy: { createdAt: "desc" },
     select: { id: true, terms: true },
   });
@@ -37,8 +38,9 @@ export async function GET() {
 
 // POST /api/settings/synonyms — добавить группу (минимум 2 разных слова)
 export async function POST(req: Request) {
-  const session = await auth();
-  if (!session) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+  const gate = await requireUser();
+  if (gate instanceof NextResponse) return gate;
+  const { userId } = gate;
 
   const parsed = createSchema.safeParse(await req.json());
   if (!parsed.success) return NextResponse.json({ error: "Проверьте поля" }, { status: 400 });
@@ -49,7 +51,7 @@ export async function POST(req: Request) {
   }
 
   const created = await prisma.synonym.create({
-    data: { userId: session.user.id, terms },
+    data: { userId, terms },
     select: { id: true, terms: true },
   });
   return NextResponse.json(created);
@@ -57,12 +59,13 @@ export async function POST(req: Request) {
 
 // DELETE /api/settings/synonyms?id=... — удалить группу
 export async function DELETE(req: Request) {
-  const session = await auth();
-  if (!session) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+  const gate = await requireUser();
+  if (gate instanceof NextResponse) return gate;
+  const { userId } = gate;
 
   const id = new URL(req.url).searchParams.get("id");
   if (!id) return NextResponse.json({ error: "id required" }, { status: 400 });
 
-  await prisma.synonym.deleteMany({ where: { id, userId: session.user.id } });
+  await prisma.synonym.deleteMany({ where: { id, userId } });
   return NextResponse.json({ ok: true });
 }

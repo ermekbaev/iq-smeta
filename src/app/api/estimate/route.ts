@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { auth } from "@/auth";
+import { requireUser } from "@/lib/auth-helpers";
 import { createEstimate } from "@/lib/estimate/service";
 
 export const runtime = "nodejs";
@@ -27,14 +27,15 @@ const schema = z.object({
 
 // POST /api/estimate — сохранить собранную смету (+ зафиксировать aliases).
 export async function POST(req: Request) {
-  const session = await auth();
-  if (!session) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+  const gate = await requireUser();
+  if (gate instanceof NextResponse) return gate;
+  const { userId } = gate;
 
   const parsed = schema.safeParse(await req.json());
   if (!parsed.success) {
     return NextResponse.json({ error: "Проверьте поля сметы" }, { status: 400 });
   }
 
-  const { id } = await createEstimate(session.user.id, parsed.data);
+  const { id } = await createEstimate(userId, parsed.data);
   return NextResponse.json({ ok: true, id });
 }

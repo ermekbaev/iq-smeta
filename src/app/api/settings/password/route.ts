@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import bcrypt from "bcryptjs";
-import { auth } from "@/auth";
+import { requireUser } from "@/lib/auth-helpers";
 import { prisma } from "@/lib/prisma";
 
 export const runtime = "nodejs";
@@ -13,10 +13,9 @@ const schema = z.object({
 
 // POST /api/settings/password — сменить пароль текущего пользователя.
 export async function POST(req: Request) {
-  const session = await auth();
-  if (!session?.user?.id) {
-    return NextResponse.json({ error: "unauthorized" }, { status: 401 });
-  }
+  const gate = await requireUser();
+  if (gate instanceof NextResponse) return gate;
+  const { userId } = gate;
 
   const parsed = schema.safeParse(await req.json());
   if (!parsed.success) {
@@ -25,7 +24,7 @@ export async function POST(req: Request) {
   }
   const { currentPassword, newPassword } = parsed.data;
 
-  const user = await prisma.user.findUnique({ where: { id: session.user.id } });
+  const user = await prisma.user.findUnique({ where: { id: userId } });
   if (!user) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
 
   const ok = await bcrypt.compare(currentPassword, user.passwordHash);

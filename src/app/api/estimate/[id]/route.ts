@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { auth } from "@/auth";
+import { requireUser } from "@/lib/auth-helpers";
 import { prisma } from "@/lib/prisma";
 import { deleteEstimate, updateEstimate } from "@/lib/estimate/service";
 
@@ -29,12 +29,13 @@ export async function PUT(
   req: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const session = await auth();
-  if (!session) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+  const gate = await requireUser();
+  if (gate instanceof NextResponse) return gate;
+  const { userId } = gate;
 
   const { id } = await params;
   const exists = await prisma.estimate.findFirst({
-    where: { id, userId: session.user.id },
+    where: { id, userId },
     select: { id: true },
   });
   if (!exists) return NextResponse.json({ error: "not found" }, { status: 404 });
@@ -53,12 +54,13 @@ export async function DELETE(
   _req: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const session = await auth();
-  if (!session) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+  const gate = await requireUser();
+  if (gate instanceof NextResponse) return gate;
+  const { userId } = gate;
 
   const { id } = await params;
   const owned = await prisma.estimate.findFirst({
-    where: { id, userId: session.user.id },
+    where: { id, userId },
     select: { id: true },
   });
   if (!owned) return NextResponse.json({ error: "not found" }, { status: 404 });

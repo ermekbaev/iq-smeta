@@ -1,13 +1,14 @@
 import { NextResponse } from "next/server";
-import { auth } from "@/auth";
+import { requireUser } from "@/lib/auth-helpers";
 import { parsePriceFile } from "@/lib/price/parse";
 import { importPrice } from "@/lib/price/service";
 
 export const runtime = "nodejs";
 
 export async function POST(req: Request) {
-  const session = await auth();
-  if (!session) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+  const gate = await requireUser();
+  if (gate instanceof NextResponse) return gate;
+  const { userId } = gate;
 
   const form = await req.formData();
   const file = form.get("file");
@@ -32,7 +33,7 @@ export async function POST(req: Request) {
     );
   }
 
-  const result = await importPrice(session.user.id, parsed.rows);
+  const result = await importPrice(userId, parsed.rows);
   return NextResponse.json({
     ok: true,
     total: parsed.total,

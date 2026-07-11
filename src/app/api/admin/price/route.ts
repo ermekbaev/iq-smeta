@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { auth } from "@/auth";
+import { requireUser } from "@/lib/auth-helpers";
 import { prisma } from "@/lib/prisma";
 import { ai } from "@/lib/ai";
 import { setEmbedding } from "@/lib/match";
@@ -18,13 +18,14 @@ const itemSchema = z.object({
 
 // GET /api/admin/price — список позиций (поиск через ?q=)
 export async function GET(req: Request) {
-  const session = await auth();
-  if (!session) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+  const gate = await requireUser();
+  if (gate instanceof NextResponse) return gate;
+  const { userId } = gate;
 
   const q = new URL(req.url).searchParams.get("q")?.trim();
   const items = await prisma.priceItem.findMany({
     where: {
-      userId: session.user.id,
+      userId,
       ...(q ? { name: { contains: q, mode: "insensitive" as const } } : {}),
     },
     orderBy: { name: "asc" },
@@ -46,8 +47,9 @@ export async function GET(req: Request) {
 
 // POST /api/admin/price — создать позицию вручную
 export async function POST(req: Request) {
-  const session = await auth();
-  if (!session) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+  const gate = await requireUser();
+  if (gate instanceof NextResponse) return gate;
+  const { userId } = gate;
 
   const parsed = itemSchema.safeParse(await req.json());
   if (!parsed.success) {
@@ -56,7 +58,7 @@ export async function POST(req: Request) {
 
   const { article, name } = parsed.data;
   const item = await prisma.priceItem.create({
-    data: { ...parsed.data, userId: session.user.id },
+    data: { ...parsed.data, userId },
     select: { id: true },
   });
   const text = [article, name].filter(Boolean).join(" ");

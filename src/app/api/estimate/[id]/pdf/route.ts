@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { auth } from "@/auth";
+import { requireUser } from "@/lib/auth-helpers";
 import { prisma } from "@/lib/prisma";
 import { groupByCategory } from "@/lib/estimate/service";
 import { estimateHtml } from "@/lib/pdf/template";
@@ -13,12 +13,13 @@ export async function GET(
   _req: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const session = await auth();
-  if (!session) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+  const gate = await requireUser();
+  if (gate instanceof NextResponse) return gate;
+  const { userId } = gate;
 
   const { id } = await params;
   const estimate = await prisma.estimate.findFirst({
-    where: { id, userId: session.user.id },
+    where: { id, userId },
     include: { items: { include: { priceItem: { select: { article: true } } } } },
   });
   if (!estimate) return NextResponse.json({ error: "not found" }, { status: 404 });

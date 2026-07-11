@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { auth } from "@/auth";
+import { requireUser } from "@/lib/auth-helpers";
 import { prisma } from "@/lib/prisma";
 
 export const runtime = "nodejs";
@@ -27,16 +27,18 @@ const schema = z.object({
 
 // GET /api/settings/company — реквизиты текущего аккаунта (или пусто)
 export async function GET() {
-  const session = await auth();
-  if (!session) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
-  const s = await prisma.companySettings.findUnique({ where: { userId: session.user.id } });
+  const gate = await requireUser();
+  if (gate instanceof NextResponse) return gate;
+  const { userId } = gate;
+  const s = await prisma.companySettings.findUnique({ where: { userId } });
   return NextResponse.json(s ?? {});
 }
 
 // PUT /api/settings/company — сохранить реквизиты/картинки текущего аккаунта
 export async function PUT(req: Request) {
-  const session = await auth();
-  if (!session) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+  const gate = await requireUser();
+  if (gate instanceof NextResponse) return gate;
+  const { userId } = gate;
 
   const parsed = schema.safeParse(await req.json());
   if (!parsed.success) {
@@ -45,8 +47,8 @@ export async function PUT(req: Request) {
   const data = parsed.data;
 
   const saved = await prisma.companySettings.upsert({
-    where: { userId: session.user.id },
-    create: { userId: session.user.id, ...data, name: data.name ?? "" },
+    where: { userId },
+    create: { userId, ...data, name: data.name ?? "" },
     update: data,
   });
   return NextResponse.json(saved);

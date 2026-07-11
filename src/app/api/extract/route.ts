@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { auth } from "@/auth";
+import { requireUser } from "@/lib/auth-helpers";
 import { ai } from "@/lib/ai";
 
 export const runtime = "nodejs";
@@ -9,8 +9,8 @@ const schema = z.object({ text: z.string().min(1) });
 
 // POST /api/extract — расшифрованный текст → структурированные позиции (PLAN 3.4).
 export async function POST(req: Request) {
-  const session = await auth();
-  if (!session) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+  const gate = await requireUser();
+  if (gate instanceof NextResponse) return gate;
 
   const parsed = schema.safeParse(await req.json());
   if (!parsed.success) {

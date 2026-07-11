@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { auth } from "@/auth";
+import { requireUser } from "@/lib/auth-helpers";
 import { prisma } from "@/lib/prisma";
 import { ai } from "@/lib/ai";
 import { setEmbedding } from "@/lib/match";
@@ -21,8 +21,9 @@ export async function PUT(
   req: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const session = await auth();
-  if (!session) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+  const gate = await requireUser();
+  if (gate instanceof NextResponse) return gate;
+  const { userId } = gate;
 
   const { id } = await params;
   const parsed = updateSchema.safeParse(await req.json());
@@ -31,7 +32,7 @@ export async function PUT(
   }
 
   const before = await prisma.priceItem.findFirst({
-    where: { id, userId: session.user.id },
+    where: { id, userId },
     select: { name: true, article: true },
   });
   if (!before) return NextResponse.json({ error: "not found" }, { status: 404 });
@@ -51,11 +52,12 @@ export async function DELETE(
   _req: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const session = await auth();
-  if (!session) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+  const gate = await requireUser();
+  if (gate instanceof NextResponse) return gate;
+  const { userId } = gate;
 
   const { id } = await params;
-  const del = await prisma.priceItem.deleteMany({ where: { id, userId: session.user.id } });
+  const del = await prisma.priceItem.deleteMany({ where: { id, userId } });
   if (del.count === 0) return NextResponse.json({ error: "not found" }, { status: 404 });
   return NextResponse.json({ ok: true });
 }

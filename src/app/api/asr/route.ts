@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { auth } from "@/auth";
+import { requireUser } from "@/lib/auth-helpers";
 import { ai } from "@/lib/ai";
 
 export const runtime = "nodejs";
@@ -7,8 +7,8 @@ export const runtime = "nodejs";
 // POST /api/asr — аудио (multipart "audio") → распознанный текст.
 // В dev работает mock-провайдер (PLAN 3.1); прод — Яндекс SpeechKit/GigaChat.
 export async function POST(req: Request) {
-  const session = await auth();
-  if (!session) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+  const gate = await requireUser();
+  if (gate instanceof NextResponse) return gate;
 
   const form = await req.formData();
   const audio = form.get("audio");
