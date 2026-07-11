@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import { signIn, auth } from "@/auth";
 import { AuthError } from "next-auth";
@@ -66,6 +67,12 @@ export default async function LoginPage({
         >
           Войти
         </button>
+        <p className="text-center text-sm text-gray-500">
+          Нет аккаунта?{" "}
+          <Link href="/register" className="text-gray-900 hover:underline">
+            Зарегистрироваться
+          </Link>
+        </p>
       </form>
     </main>
   );

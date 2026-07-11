@@ -12,20 +12,21 @@ export interface ImportResult {
  * Импорт разобранных строк прайса: upsert по (name, unit) + эмбеддинг названия.
  * Повторная загрузка обновляет цену/категорию, aliases и сметы не рушатся.
  */
-export async function importPrice(rows: ParsedRow[]): Promise<ImportResult> {
+export async function importPrice(userId: string, rows: ParsedRow[]): Promise<ImportResult> {
   let created = 0;
   let updated = 0;
   const saved: { id: string; text: string }[] = [];
 
-  // 1) upsert позиций
+  // 1) upsert позиций (в рамках аккаунта)
   for (const row of rows) {
     const existing = await prisma.priceItem.findUnique({
-      where: { name_unit: { name: row.name, unit: row.unit } },
+      where: { userId_name_unit: { userId, name: row.name, unit: row.unit } },
       select: { id: true },
     });
     const item = await prisma.priceItem.upsert({
-      where: { name_unit: { name: row.name, unit: row.unit } },
+      where: { userId_name_unit: { userId, name: row.name, unit: row.unit } },
       create: {
+        userId,
         article: row.article,
         name: row.name,
         unit: row.unit,

@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
+import { auth } from "@/auth";
 import EstimateEditor, { EditLine } from "./EstimateEditor";
 
 export default async function EstimateEditPage({
@@ -9,8 +10,9 @@ export default async function EstimateEditPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const estimate = await prisma.estimate.findUnique({
-    where: { id },
+  const session = await auth();
+  const estimate = await prisma.estimate.findFirst({
+    where: { id, userId: session!.user.id },
     include: { items: { orderBy: { category: "asc" } } },
   });
   if (!estimate) notFound();

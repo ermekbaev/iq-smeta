@@ -1,10 +1,8 @@
-// Реквизиты компании/ИП для КП. Хранятся в БД (CompanySettings, синглтон),
-// редактируются на странице «Настройки компании» — как в metalcrm.
+// Реквизиты компании/ИП для КП. Хранятся в БД (CompanySettings, одна запись
+// на аккаунт), редактируются на странице «Настройки компании» — как в metalcrm.
 // Мультибренд (сборники со своими реквизитами/лого) — следующая фаза.
 
 import { prisma } from "@/lib/prisma";
-
-export const SETTINGS_ID = "singleton";
 
 export interface CompanyBrand {
   /** Название бренда/ИП в шапке. */
@@ -25,15 +23,14 @@ export interface CompanyBrand {
   signer: string;
 }
 
-/** Настройки компании из БД (или пустой синглтон). */
-export async function getCompanySettings() {
-  const s = await prisma.companySettings.findUnique({ where: { id: SETTINGS_ID } });
-  return s;
+/** Настройки компании аккаунта из БД (или null). */
+export async function getCompanySettings(userId: string) {
+  return prisma.companySettings.findUnique({ where: { userId } });
 }
 
-/** Собирает бренд для PDF/КП из настроек компании. */
-export async function getCompanyBrand(): Promise<CompanyBrand> {
-  const s = await getCompanySettings();
+/** Собирает бренд для PDF/КП из настроек компании аккаунта. */
+export async function getCompanyBrand(userId: string): Promise<CompanyBrand> {
+  const s = await getCompanySettings(userId);
 
   const contacts = [s?.phone, s?.website, s?.email].filter(Boolean).join(" · ");
 

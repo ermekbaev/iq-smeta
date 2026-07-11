@@ -1,11 +1,14 @@
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
+import { auth } from "@/auth";
 import InstallPwaButton from "@/components/InstallPwaButton";
 
 export default async function AdminDashboard() {
+  const session = await auth();
+  const userId = session!.user.id;
   const [priceCount, estimateCount] = await Promise.all([
-    prisma.priceItem.count(),
-    prisma.estimate.count(),
+    prisma.priceItem.count({ where: { userId } }),
+    prisma.estimate.count({ where: { userId } }),
   ]);
 
   return (

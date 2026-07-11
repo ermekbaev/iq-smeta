@@ -23,7 +23,10 @@ export async function GET(req: Request) {
 
   const q = new URL(req.url).searchParams.get("q")?.trim();
   const items = await prisma.priceItem.findMany({
-    where: q ? { name: { contains: q, mode: "insensitive" } } : undefined,
+    where: {
+      userId: session.user.id,
+      ...(q ? { name: { contains: q, mode: "insensitive" as const } } : {}),
+    },
     orderBy: { name: "asc" },
     take: 500,
     select: {
@@ -53,7 +56,7 @@ export async function POST(req: Request) {
 
   const { article, name } = parsed.data;
   const item = await prisma.priceItem.create({
-    data: parsed.data,
+    data: { ...parsed.data, userId: session.user.id },
     select: { id: true },
   });
   const text = [article, name].filter(Boolean).join(" ");

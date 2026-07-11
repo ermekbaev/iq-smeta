@@ -2,6 +2,7 @@ import { Fragment } from "react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
+import { auth } from "@/auth";
 import { groupByCategory } from "@/lib/estimate/service";
 import DeleteEstimateButton from "./DeleteEstimateButton";
 
@@ -14,8 +15,9 @@ export default async function EstimateDetail({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const estimate = await prisma.estimate.findUnique({
-    where: { id },
+  const session = await auth();
+  const estimate = await prisma.estimate.findFirst({
+    where: { id, userId: session!.user.id },
     include: { items: true },
   });
   if (!estimate) notFound();

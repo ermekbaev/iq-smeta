@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import SynonymsManager from "./SynonymsManager";
 
 interface Settings {
   name: string;
@@ -252,6 +253,8 @@ export default function CompanySettingsPage() {
           {pwMsg && <span className="text-sm text-gray-700">{pwMsg}</span>}
         </div>
       </section>
+
+      <SynonymsManager />
     </div>
   );
 }

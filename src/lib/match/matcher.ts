@@ -6,6 +6,7 @@ import { prisma } from "@/lib/prisma";
 import { ai } from "@/lib/ai";
 import { searchSimilar } from "./index";
 import { fuzzyScore, normalizeText } from "./fuzzy";
+import { expandWithSynonyms } from "./synonyms";
 
 // Настройки подбора — через env, чтобы тюнить без правок кода (PLAN 3.2).
 // Порог автоподбора: выше — берём молча, ниже — спрашиваем подтверждение.
@@ -39,12 +40,12 @@ export interface MatchResult {
   source: "alias" | "auto" | "none";
 }
 
-export async function matchItem(name: string): Promise<MatchResult> {
+export async function matchItem(userId: string, name: string): Promise<MatchResult> {
   const normalized = normalizeText(name);
 
-  // Слой 1 — выученное сопоставление
+  // Слой 1 — выученное сопоставление (в рамках аккаунта)
   const alias = await prisma.alias.findUnique({
-    where: { spokenText: normalized },
+    where: { userId_spokenText: { userId, spokenText: normalized } },
     include: {
       priceItem: {
         select: { id: true, name: true, unit: true, price: true, category: true },
@@ -76,8 +77,10 @@ export async function matchItem(name: string): Promise<MatchResult> {
   // подбор, а возвращаем «нет совпадения» → позиция пойдёт на ручной ввод.
   let raw: Awaited<ReturnType<typeof searchSimilar>> = [];
   try {
-    const vector = await ai.embeddings.embed(name);
-    raw = await searchSimilar(vector, 5);
+    // расширяем запрос синонимами аккаунта перед эмбеддингом (в обе стороны)
+    const expanded = await expandWithSynonyms(userId, name);
+    const vector = await ai.embeddings.embed(expanded);
+    raw = await searchSimilar(userId, vector, 5);
   } catch {
     return {
       query: name,

@@ -30,8 +30,8 @@ export async function PUT(
     return NextResponse.json({ error: "Проверьте поля" }, { status: 400 });
   }
 
-  const before = await prisma.priceItem.findUnique({
-    where: { id },
+  const before = await prisma.priceItem.findFirst({
+    where: { id, userId: session.user.id },
     select: { name: true, article: true },
   });
   if (!before) return NextResponse.json({ error: "not found" }, { status: 404 });
@@ -55,6 +55,7 @@ export async function DELETE(
   if (!session) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
 
   const { id } = await params;
-  await prisma.priceItem.delete({ where: { id } });
+  const del = await prisma.priceItem.deleteMany({ where: { id, userId: session.user.id } });
+  if (del.count === 0) return NextResponse.json({ error: "not found" }, { status: 404 });
   return NextResponse.json({ ok: true });
 }

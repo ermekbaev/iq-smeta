@@ -2,7 +2,6 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
-import { SETTINGS_ID } from "@/lib/brand/company";
 
 export const runtime = "nodejs";
 
@@ -26,15 +25,15 @@ const schema = z.object({
   signature: z.string().max(IMG_MAX).nullable().optional(),
 });
 
-// GET /api/settings/company — текущие реквизиты (или пусто)
+// GET /api/settings/company — реквизиты текущего аккаунта (или пусто)
 export async function GET() {
   const session = await auth();
   if (!session) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
-  const s = await prisma.companySettings.findUnique({ where: { id: SETTINGS_ID } });
+  const s = await prisma.companySettings.findUnique({ where: { userId: session.user.id } });
   return NextResponse.json(s ?? {});
 }
 
-// PUT /api/settings/company — сохранить реквизиты/картинки
+// PUT /api/settings/company — сохранить реквизиты/картинки текущего аккаунта
 export async function PUT(req: Request) {
   const session = await auth();
   if (!session) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
@@ -46,8 +45,8 @@ export async function PUT(req: Request) {
   const data = parsed.data;
 
   const saved = await prisma.companySettings.upsert({
-    where: { id: SETTINGS_ID },
-    create: { id: SETTINGS_ID, ...data, name: data.name ?? "" },
+    where: { userId: session.user.id },
+    create: { userId: session.user.id, ...data, name: data.name ?? "" },
     update: data,
   });
   return NextResponse.json(saved);

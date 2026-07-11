@@ -31,6 +31,7 @@ export interface MatchCandidate {
  * Возвращает кандидатов, отсортированных по близости.
  */
 export async function searchSimilar(
+  userId: string,
   vector: number[],
   limit = 5
 ): Promise<MatchCandidate[]> {
@@ -39,7 +40,7 @@ export async function searchSimilar(
     SELECT id, name, unit, price::text AS price, category::text AS category,
            embedding <=> ${vec}::vector AS distance
     FROM price_items
-    WHERE embedding IS NOT NULL
+    WHERE user_id = ${userId} AND embedding IS NOT NULL
     ORDER BY embedding <=> ${vec}::vector
     LIMIT ${limit}
   `;

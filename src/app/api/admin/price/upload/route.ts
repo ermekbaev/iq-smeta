@@ -32,7 +32,7 @@ export async function POST(req: Request) {
     );
   }
 
-  const result = await importPrice(parsed.rows);
+  const result = await importPrice(session.user.id, parsed.rows);
   return NextResponse.json({
     ok: true,
     total: parsed.total,

@@ -70,8 +70,8 @@ export async function createEstimate(
         const spoken = normalizeText(line.spokenText);
         if (spoken) {
           await tx.alias.upsert({
-            where: { spokenText: spoken },
-            create: { spokenText: spoken, priceItemId: line.priceItemId },
+            where: { userId_spokenText: { userId, spokenText: spoken } },
+            create: { userId, spokenText: spoken, priceItemId: line.priceItemId },
             update: { priceItemId: line.priceItemId },
           });
         }

@@ -33,7 +33,10 @@ export async function PUT(
   if (!session) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
 
   const { id } = await params;
-  const exists = await prisma.estimate.findUnique({ where: { id }, select: { id: true } });
+  const exists = await prisma.estimate.findFirst({
+    where: { id, userId: session.user.id },
+    select: { id: true },
+  });
   if (!exists) return NextResponse.json({ error: "not found" }, { status: 404 });
 
   const parsed = updateSchema.safeParse(await req.json());
@@ -54,6 +57,11 @@ export async function DELETE(
   if (!session) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
 
   const { id } = await params;
+  const owned = await prisma.estimate.findFirst({
+    where: { id, userId: session.user.id },
+    select: { id: true },
+  });
+  if (!owned) return NextResponse.json({ error: "not found" }, { status: 404 });
   await deleteEstimate(id);
   return NextResponse.json({ ok: true });
 }

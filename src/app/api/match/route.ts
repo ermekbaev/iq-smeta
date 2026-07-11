@@ -29,7 +29,7 @@ export async function POST(req: Request) {
 
   const results = await Promise.all(
     parsed.data.items.map(async (it) => {
-      const m = await matchItem(it.name);
+      const m = await matchItem(session.user.id, it.name);
       return { input: it, match: m };
     })
   );

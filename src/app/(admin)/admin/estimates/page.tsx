@@ -1,11 +1,14 @@
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
+import { auth } from "@/auth";
 
 const money = (n: number) =>
   n.toLocaleString("ru-RU", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
 export default async function EstimatesPage() {
+  const session = await auth();
   const estimates = await prisma.estimate.findMany({
+    where: { userId: session!.user.id },
     orderBy: { createdAt: "desc" },
     take: 100,
     select: {

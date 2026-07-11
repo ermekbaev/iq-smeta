@@ -17,8 +17,8 @@ export async function GET(
   if (!session) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
 
   const { id } = await params;
-  const estimate = await prisma.estimate.findUnique({
-    where: { id },
+  const estimate = await prisma.estimate.findFirst({
+    where: { id, userId: session.user.id },
     include: { items: { include: { priceItem: { select: { article: true } } } } },
   });
   if (!estimate) return NextResponse.json({ error: "not found" }, { status: 404 });
@@ -26,7 +26,7 @@ export async function GET(
   // артикул берём из связанной позиции прайса (у ручных позиций его нет)
   const items = estimate.items.map((it) => ({ ...it, article: it.priceItem?.article ?? null }));
 
-  const company = await getCompanyBrand();
+  const company = await getCompanyBrand(estimate.userId);
   const date = estimate.createdAt.toLocaleDateString("ru-RU");
 
   const html = estimateHtml({

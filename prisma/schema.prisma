@@ -23,18 +23,24 @@ enum Role {
 }
 
 model User {
-  id           String     @id @default(cuid())
-  email        String     @unique
-  passwordHash String     @map("password_hash")
-  role         Role       @default(ADMIN)
-  createdAt    DateTime   @default(now()) @map("created_at")
+  id           String           @id @default(cuid())
+  email        String           @unique
+  passwordHash String           @map("password_hash")
+  role         Role             @default(ADMIN)
+  createdAt    DateTime         @default(now()) @map("created_at")
   estimates    Estimate[]
+  priceItems   PriceItem[]
+  aliases      Alias[]
+  synonyms     Synonym[]
+  settings     CompanySettings?
 
   @@map("users")
 }
 
 model PriceItem {
   id        String   @id @default(cuid())
+  userId    String   @map("user_id")
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   article   String?  // артикул поставщика — для поиска по коду
   name      String
   unit      String
@@ -50,21 +56,39 @@ model PriceItem {
   aliases       Alias[]
   estimateItems EstimateItem[]
 
-  // повторная загрузка прайса обновляет существующую позицию (upsert), а не дублирует
-  @@unique([name, unit])
+  // прайс изолирован по аккаунту; повторная загрузка обновляет позицию (upsert)
+  @@unique([userId, name, unit])
+  @@index([userId])
   @@index([category])
   @@map("price_items")
 }
 
 model Alias {
   id          String    @id @default(cuid())
-  // нормализованный текст из речи; уникален — "последняя правка побеждает" (PLAN 3.3)
-  spokenText  String    @unique @map("spoken_text")
+  userId      String    @map("user_id")
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  // нормализованный текст из речи; "последняя правка побеждает" в рамках аккаунта
+  spokenText  String    @map("spoken_text")
   priceItemId String    @map("price_item_id")
   priceItem   PriceItem @relation(fields: [priceItemId], references: [id], onDelete: Cascade)
   createdAt   DateTime  @default(now()) @map("created_at")
 
+  @@unique([userId, spokenText])
+  @@index([userId])
   @@map("aliases")
+}
+
+// Словарь синонимов аккаунта: группа взаимозаменяемых слов (в обе стороны).
+// terms — нормализованные слова: ["сопло","форсунка"]. Применяется при подборе.
+model Synonym {
+  id        String   @id @default(cuid())
+  userId    String   @map("user_id")
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  terms     String[]
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([userId])
+  @@map("synonyms")
 }
 
 model Estimate {
@@ -108,7 +132,9 @@ model EstimateItem {
 // Реквизиты компании/ИП для КП — редактируются на «Настройки компании».
 // Один бренд (синглтон). Картинки — data URL в Text. Мультибренд — следующая фаза.
 model CompanySettings {
-  id             String   @id @default("singleton")
+  id             String   @id @default(cuid())
+  userId         String   @unique @map("user_id")
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   name           String   @default("") // наименование ИП/компании (шапка)
   inn            String?
   ogrn           String? // ОГРН / ОГРНИП
