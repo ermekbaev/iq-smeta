@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useTransition } from "react";
+import UploadButton from "@/components/UploadButton";
 
 interface Item {
   id: string;
@@ -17,6 +18,8 @@ export default function PriceManager() {
   const [q, setQ] = useState("");
   const [msg, setMsg] = useState<string | null>(null);
   const [editing, setEditing] = useState<Item | null>(null);
+  const [file, setFile] = useState<File | null>(null);
+  const [uploading, setUploading] = useState(false);
   const [, startTransition] = useTransition();
   const [loading, setLoading] = useState(false);
 
@@ -31,16 +34,18 @@ export default function PriceManager() {
     load();
   }, []);
 
-  async function onUpload(e: React.FormEvent<HTMLFormElement>) {
-    e.preventDefault();
-    const form = e.currentTarget;
-    const fd = new FormData(form);
+  async function onUpload() {
+    if (!file) return;
+    const fd = new FormData();
+    fd.append("file", file);
+    setUploading(true);
     setMsg("Загрузка…");
     const res = await fetch("/api/admin/price/upload", {
       method: "POST",
       body: fd,
     });
     const data = await res.json();
+    setUploading(false);
     if (!res.ok) {
       setMsg(`Ошибка: ${data.error ?? "не удалось"}`);
       return;
@@ -48,7 +53,7 @@ export default function PriceManager() {
     setMsg(
       `Готово: ${data.imported} позиций (новых ${data.created}, обновлено ${data.updated}, пропущено ${data.skipped}).`
     );
-    form.reset();
+    setFile(null);
     startTransition(() => void load(q));
   }
 
@@ -84,18 +89,21 @@ export default function PriceManager() {
     <div className="space-y-6">
       <section className="rounded-xl border bg-white p-5">
         <h2 className="mb-3 font-medium text-gray-900">Загрузить прайс (Excel/CSV)</h2>
-        <form onSubmit={onUpload} className="flex flex-wrap items-center gap-3">
-          <input
-            type="file"
-            name="file"
+        <div className="flex flex-wrap items-center gap-3">
+          <UploadButton
             accept=".xlsx,.xls,.csv"
-            required
-            className="text-sm"
+            label={file ? "Другой файл" : "Выбрать файл"}
+            onFile={setFile}
           />
-          <button className="rounded bg-gray-900 px-4 py-2 text-sm font-medium text-white hover:bg-gray-700">
-            Загрузить
+          {file && <span className="text-sm text-gray-600">{file.name}</span>}
+          <button
+            onClick={onUpload}
+            disabled={!file || uploading}
+            className="rounded bg-gray-900 px-4 py-2 text-sm font-medium text-white hover:bg-gray-700 disabled:opacity-50"
+          >
+            {uploading ? "Загрузка…" : "Загрузить"}
           </button>
-        </form>
+        </div>
         <p className="mt-2 text-xs text-gray-500">
           Колонки: «наименование», «ед.», «цена», «категория». Повторная загрузка
           обновляет цены по совпадению названия+единицы.

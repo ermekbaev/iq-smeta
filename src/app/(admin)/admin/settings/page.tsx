@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import SynonymsManager from "./SynonymsManager";
+import UploadButton from "@/components/UploadButton";
 
 interface Settings {
   name: string;
@@ -56,9 +57,7 @@ export default function CompanySettingsPage() {
 
   const set = (k: keyof Settings, v: string | null) => setS((p) => ({ ...p, [k]: v }));
 
-  function onImg(field: ImgField, e: React.ChangeEvent<HTMLInputElement>) {
-    const f = e.target.files?.[0];
-    if (!f) return;
+  function onImg(field: ImgField, f: File) {
     if (f.size > 2_000_000) {
       setMsg("Файл слишком большой (до 2 МБ).");
       return;
@@ -131,11 +130,10 @@ export default function CompanySettingsPage() {
             className="h-16 w-auto max-w-40 rounded border object-contain"
           />
         )}
-        <input
-          type="file"
+        <UploadButton
           accept="image/png,image/jpeg,image/svg+xml"
-          onChange={(e) => onImg(k, e)}
-          className="max-w-full text-sm"
+          label={s[k] ? "Заменить" : "Загрузить"}
+          onFile={(f) => onImg(k, f)}
         />
         {s[k] && (
           <button

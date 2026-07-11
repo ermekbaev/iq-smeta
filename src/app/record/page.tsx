@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useRef, useState } from "react";
 import { WavRecorder } from "@/lib/audio/wav-recorder";
 import BottomNav from "@/components/BottomNav";
+import UploadButton from "@/components/UploadButton";
 
 interface Candidate {
   id: string;
@@ -178,10 +179,8 @@ export default function RecordPage() {
     setLines((ls) => ls.filter((_, idx) => idx !== i));
   }
 
-  // Логотип для КП: файл → data URL (реквизиты/печать зашиты в конфиг бренда)
-  function onLogoFile(e: React.ChangeEvent<HTMLInputElement>) {
-    const f = e.target.files?.[0];
-    if (!f) return;
+  // Логотип для КП: файл → data URL (реквизиты/печать берутся из настроек)
+  function onLogoFile(f: File) {
     if (f.size > 2_000_000) {
       setError("Логотип слишком большой (до 2 МБ).");
       return;
@@ -330,11 +329,10 @@ export default function RecordPage() {
                     className="h-12 w-auto max-w-32 rounded border object-contain"
                   />
                 )}
-                <input
-                  type="file"
+                <UploadButton
                   accept="image/png,image/jpeg,image/svg+xml"
-                  onChange={onLogoFile}
-                  className="max-w-full text-sm"
+                  label={logo ? "Заменить" : "Загрузить логотип"}
+                  onFile={onLogoFile}
                 />
                 {logo && (
                   <button
