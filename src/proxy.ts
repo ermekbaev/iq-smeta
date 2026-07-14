@@ -33,7 +33,7 @@ export default auth((req) => {
 
 export const config = {
   // исключаем статику, _next и публичный логотип (нужен на /login и /register)
-  matcher: [
-    "/((?!_next/static|_next/image|favicon.ico|manifest.json|sw.js|icon.svg|icons|logo-iqsmeta.svg).*)",
-  ],
+  // proxy не трогает _next и ЛЮБОЙ файл с расширением (svg/png/js/json…) —
+  // статика (включая логотип на /login и /register) публична для всех
+  matcher: ["/((?!_next/static|_next/image|.*\\..*).*)"],
 };
