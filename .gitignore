@@ -40,3 +40,10 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# локальные документы — НЕ коммитить (печати/подписи, чужие реквизиты, цены)
+/*.docx
+/*.xlsx
+/ДОРОЖНАЯ-КАРТА.md
+/ZOOM-*.md
+/public/_IQ_POLIV_*.svg
