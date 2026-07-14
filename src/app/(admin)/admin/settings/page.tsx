@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import SynonymsManager from "./SynonymsManager";
 import PasswordChange from "./PasswordChange";
 import UploadButton from "@/components/UploadButton";
 
@@ -184,8 +183,6 @@ export default function CompanySettingsPage() {
       </section>
 
       <PasswordChange />
-
-      <SynonymsManager />
     </div>
   );
 }

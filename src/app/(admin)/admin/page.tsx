@@ -29,15 +29,26 @@ export default async function AdminDashboard() {
           <div className="mt-1 text-sm text-gray-600">смет создано →</div>
         </Link>
       </div>
-      <Link
-        href="/admin/settings"
-        className="block rounded-xl border bg-white p-5 shadow-sm hover:border-gray-400"
-      >
-        <div className="font-medium text-gray-900">Настройки компании →</div>
-        <div className="mt-1 text-sm text-gray-600">
-          Реквизиты, логотип и печать для КП
-        </div>
-      </Link>
+      <div className="grid gap-4 sm:grid-cols-2">
+        <Link
+          href="/admin/settings"
+          className="block rounded-xl border bg-white p-5 shadow-sm hover:border-gray-400"
+        >
+          <div className="font-medium text-gray-900">Настройки компании →</div>
+          <div className="mt-1 text-sm text-gray-600">
+            Реквизиты, логотип и печать для КП
+          </div>
+        </Link>
+        <Link
+          href="/admin/synonyms"
+          className="block rounded-xl border bg-white p-5 shadow-sm hover:border-gray-400"
+        >
+          <div className="font-medium text-gray-900">Синонимы →</div>
+          <div className="mt-1 text-sm text-gray-600">
+            Слова-синонимы для точного подбора
+          </div>
+        </Link>
+      </div>
 
       <InstallPwaButton />
     </div>
