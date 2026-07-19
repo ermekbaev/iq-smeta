@@ -1,15 +1,14 @@
+// Общая база синонимов — CRUD только для сопровождающего (вариант A).
+// Группы с isGlobal=true применяются при подборе у ВСЕХ аккаунтов.
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { requireUser } from "@/lib/auth-helpers";
+import { requireGlobalSynonymAdmin } from "@/lib/auth-helpers";
 import { prisma } from "@/lib/prisma";
 
 export const runtime = "nodejs";
 
-const createSchema = z.object({
-  terms: z.array(z.string()).min(1),
-});
+const createSchema = z.object({ terms: z.array(z.string()).min(1) });
 
-// нормализуем слова группы: трим, нижний регистр, без пустых и дублей
 function cleanTerms(terms: string[]): string[] {
   const seen = new Set<string>();
   const out: string[] = [];
@@ -23,22 +22,21 @@ function cleanTerms(terms: string[]): string[] {
   return out;
 }
 
-// GET /api/settings/synonyms — группы синонимов аккаунта
+// GET — все группы общей базы
 export async function GET() {
-  const gate = await requireUser();
+  const gate = await requireGlobalSynonymAdmin();
   if (gate instanceof NextResponse) return gate;
-  const { userId } = gate;
   const items = await prisma.synonym.findMany({
-    where: { userId, isGlobal: false }, // общая база в личном списке не показывается
+    where: { isGlobal: true },
     orderBy: { createdAt: "desc" },
     select: { id: true, terms: true },
   });
   return NextResponse.json(items);
 }
 
-// POST /api/settings/synonyms — добавить группу (минимум 2 разных слова)
+// POST — добавить группу в общую базу
 export async function POST(req: Request) {
-  const gate = await requireUser();
+  const gate = await requireGlobalSynonymAdmin();
   if (gate instanceof NextResponse) return gate;
   const { userId } = gate;
 
@@ -51,21 +49,20 @@ export async function POST(req: Request) {
   }
 
   const created = await prisma.synonym.create({
-    data: { userId, terms },
+    data: { userId, terms, isGlobal: true },
     select: { id: true, terms: true },
   });
   return NextResponse.json(created);
 }
 
-// DELETE /api/settings/synonyms?id=... — удалить группу
+// DELETE ?id=... — удалить группу из общей базы
 export async function DELETE(req: Request) {
-  const gate = await requireUser();
+  const gate = await requireGlobalSynonymAdmin();
   if (gate instanceof NextResponse) return gate;
-  const { userId } = gate;
 
   const id = new URL(req.url).searchParams.get("id");
   if (!id) return NextResponse.json({ error: "id required" }, { status: 400 });
 
-  await prisma.synonym.deleteMany({ where: { id, userId, isGlobal: false } });
+  await prisma.synonym.deleteMany({ where: { id, isGlobal: true } });
   return NextResponse.json({ ok: true });
 }

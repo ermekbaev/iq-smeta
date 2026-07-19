@@ -77,27 +77,39 @@ export const yandexAsr: AsrProvider = {
   },
 };
 
+// Один запрос к YandexGPT (system + user) → текст ответа.
+async function yandexComplete(
+  system: string,
+  user: string,
+  maxTokens = 2000
+): Promise<string> {
+  const { apiKey, folderId } = cfg();
+  const model = process.env.YANDEX_GPT_MODEL || "yandexgpt";
+  const res = await fetch(LLM_URL, {
+    method: "POST",
+    headers: { Authorization: `Api-Key ${apiKey}`, "Content-Type": "application/json" },
+    body: JSON.stringify({
+      modelUri: `gpt://${folderId}/${model}/latest`,
+      completionOptions: { temperature: 0, maxTokens },
+      messages: [
+        { role: "system", text: system },
+        { role: "user", text: user },
+      ],
+    }),
+  });
+  if (!res.ok) throw new Error(`YandexGPT ${res.status}: ${await res.text()}`);
+  const data = (await res.json()) as {
+    result?: { alternatives?: { message?: { text?: string } }[] };
+  };
+  return data.result?.alternatives?.[0]?.message?.text ?? "";
+}
+
 export const yandexLlm: LlmProvider = {
   async extractItems(text: string): Promise<Extraction> {
-    const { apiKey, folderId } = cfg();
-    const model = process.env.YANDEX_GPT_MODEL || "yandexgpt";
-    const res = await fetch(LLM_URL, {
-      method: "POST",
-      headers: { Authorization: `Api-Key ${apiKey}`, "Content-Type": "application/json" },
-      body: JSON.stringify({
-        modelUri: `gpt://${folderId}/${model}/latest`,
-        completionOptions: { temperature: 0, maxTokens: 2000 },
-        messages: [
-          { role: "system", text: EXTRACT_SYSTEM_PROMPT },
-          { role: "user", text },
-        ],
-      }),
-    });
-    if (!res.ok) throw new Error(`YandexGPT ${res.status}: ${await res.text()}`);
-    const data = (await res.json()) as {
-      result?: { alternatives?: { message?: { text?: string } }[] };
-    };
-    return parseExtraction(data.result?.alternatives?.[0]?.message?.text ?? "");
+    return parseExtraction(await yandexComplete(EXTRACT_SYSTEM_PROMPT, text));
+  },
+  complete(system: string, user: string): Promise<string> {
+    return yandexComplete(system, user, 800);
   },
 };
 

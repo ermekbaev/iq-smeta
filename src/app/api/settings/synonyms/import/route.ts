@@ -36,7 +36,7 @@ export async function POST(req: Request) {
 
   // уже существующие группы — чтобы не плодить дубли при повторном импорте
   const existing = await prisma.synonym.findMany({
-    where: { userId },
+    where: { userId, isGlobal: false },
     select: { terms: true },
   });
   const seen = new Set(existing.map((g) => key(clean(g.terms))));

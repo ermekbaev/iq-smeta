@@ -56,6 +56,25 @@ export const mockLlm: LlmProvider = {
 
     return { object, client, items };
   },
+  // dev-помощник синонимов: детерминированные ответы по маркеру в system-промпте.
+  async complete(system: string, user: string): Promise<string> {
+    if (system.includes("СИНОНИМЫ-ПОДСКАЗКА")) {
+      const canned: Record<string, string[]> = {
+        сопло: ["форсунка", "распылитель"],
+        дождеватель: ["спринклер"],
+        бак: ["ёмкость", "накопитель"],
+      };
+      return JSON.stringify(canned[user.trim().toLowerCase()] ?? []);
+    }
+    if (system.includes("СИНОНИМЫ-ПРОВЕРКА")) {
+      const t = user.toLowerCase();
+      const bad = t.includes("труба") && t.includes("кабель");
+      return JSON.stringify(
+        bad ? { ok: false, note: "труба и кабель — разные изделия" } : { ok: true, note: "" }
+      );
+    }
+    return "";
+  },
 };
 
 // Снимает из начала диктовки объект и заказчика (dev-эвристика).

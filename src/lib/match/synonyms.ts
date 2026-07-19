@@ -22,10 +22,13 @@ export function applySynonyms(groups: string[][], text: string): string {
   return extra.size ? `${text.trim()} ${[...extra].join(" ")}` : text;
 }
 
-/** Расширяет запрос синонимами аккаунта (грузит группы из БД, применяет applySynonyms). */
+/**
+ * Расширяет запрос синонимами при подборе: личные группы аккаунта + общая база
+ * (isGlobal — её ведёт сопровождающий, аккаунтам она не видна в их списке).
+ */
 export async function expandWithSynonyms(userId: string, text: string): Promise<string> {
   const groups = await prisma.synonym.findMany({
-    where: { userId },
+    where: { OR: [{ userId }, { isGlobal: true }] },
     select: { terms: true },
   });
   return applySynonyms(

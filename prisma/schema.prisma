@@ -85,9 +85,13 @@ model Synonym {
   userId    String   @map("user_id")
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   terms     String[]
+  // общая база: применяется при подборе у ВСЕХ аккаунтов; ведёт её один
+  // сопровождающий (IQ). В личном списке аккаунтов такие группы не показываются.
+  isGlobal  Boolean  @default(false) @map("is_global")
   createdAt DateTime @default(now()) @map("created_at")
 
   @@index([userId])
+  @@index([isGlobal])
   @@map("synonyms")
 }
 
