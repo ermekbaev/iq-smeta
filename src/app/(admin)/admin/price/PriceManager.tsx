@@ -19,6 +19,7 @@ export default function PriceManager() {
   const [msg, setMsg] = useState<string | null>(null);
   const [editing, setEditing] = useState<Item | null>(null);
   const [file, setFile] = useState<File | null>(null);
+  const [direction, setDirection] = useState("");
   const [uploading, setUploading] = useState(false);
   const [, startTransition] = useTransition();
   const [loading, setLoading] = useState(false);
@@ -38,6 +39,7 @@ export default function PriceManager() {
     if (!file) return;
     const fd = new FormData();
     fd.append("file", file);
+    if (direction.trim()) fd.append("direction", direction.trim());
     setUploading(true);
     setMsg("Загрузка…");
     const res = await fetch("/api/admin/price/upload", {
@@ -57,6 +59,7 @@ export default function PriceManager() {
           : "")
     );
     setFile(null);
+    setDirection("");
     startTransition(() => void load(q));
   }
 
@@ -99,6 +102,12 @@ export default function PriceManager() {
             onFile={setFile}
           />
           {file && <span className="text-sm text-gray-600">{file.name}</span>}
+          <input
+            value={direction}
+            onChange={(e) => setDirection(e.target.value)}
+            placeholder="Направление (напр. Дренаж)"
+            className="min-w-0 rounded border border-gray-300 px-3 py-2 text-sm"
+          />
           <button
             onClick={onUpload}
             disabled={!file || uploading}
@@ -108,8 +117,9 @@ export default function PriceManager() {
           </button>
         </div>
         <p className="mt-2 text-xs text-gray-500">
-          Колонки: «наименование», «ед.», «цена», «категория». Повторная загрузка
-          обновляет цены по совпадению названия+единицы.
+          Колонки: «наименование», «ед.», «цена» (Кол-во/Итого игнорируются). Укажите
+          <b> направление</b> — все позиции файла попадут в эту категорию. Повторная
+          загрузка обновляет цены по совпадению названия+единицы.
         </p>
         {msg && <p className="mt-2 text-sm text-gray-700">{msg}</p>}
       </section>

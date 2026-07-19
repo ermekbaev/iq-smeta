@@ -19,7 +19,9 @@ export async function POST(req: Request) {
   const buf = Buffer.from(await file.arrayBuffer());
   const isCsv =
     file.type === "text/csv" || /\.csv$/i.test(file.name ?? "");
-  const parsed = parsePriceFile(buf, { csv: isCsv });
+  // направление (услуга): станет категорией всех позиций этого файла
+  const direction = String(form.get("direction") ?? "").trim() || undefined;
+  const parsed = parsePriceFile(buf, { csv: isCsv, direction });
 
   if (parsed.rows.length === 0) {
     return NextResponse.json(

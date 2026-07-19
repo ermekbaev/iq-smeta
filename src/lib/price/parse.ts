@@ -1,12 +1,13 @@
-// Разбор прайса Excel/CSV (PLAN этап 1 + реальный формат заказчика).
+// Разбор прайса Excel/CSV (PLAN этап 1 + реальные форматы заказчика).
 //
-// Поддерживает и простые плоские таблицы (наш формат), и реальные прайсы:
-//  - несколько листов (по брендам/поставщикам);
-//  - заголовок не в первой строке (сверху реквизиты компании);
-//  - строки-разделы внутри данных («Светильники», «Ёмкости») → категория;
-//  - несколько колонок цены: РРЦ (розница → price) и ОПТ (закупка → cost);
-//  - колонка артикула; колонка фото игнорируется.
-// Лист-смета (есть колонка «Кол-во») пропускается — берём только каталоги.
+// Поддерживает:
+//  - простые плоские таблицы (наш формат);
+//  - реальные прайсы (несколько листов, заголовок не в первой строке,
+//    строки-разделы → категория, колонки РРЦ/ОПТ, артикул, колонка фото);
+//  - шаблоны СМЕТ заказчика (есть «Кол-во» и «Итого» — их игнорим, берём
+//    Наименование/Ед./Цена; подытоги «Итого/Всего/Накладные» пропускаем;
+//    лист «Расходники» пропускаем).
+// «Направление» при загрузке файла становится категорией всех его позиций.
 
 import * as XLSX from "xlsx";
 
@@ -39,21 +40,26 @@ function matchCol(header: string): Col | null {
   if (/^ед|единиц/.test(h)) return "unit";
   if (/категор|группа|раздел/.test(h)) return "category";
   // ОПТ/закупка (но не «оптовая скидка»)
-  if ((/опт|закуп/.test(h)) && !/скидк/.test(h)) return "cost";
+  if (/опт|закуп/.test(h) && !/скидк/.test(h)) return "cost";
   // розница
   if (/ррц|розн/.test(h)) return "price";
-  if (/цена|стоимост/.test(h) && !/сумма/.test(h)) return "price";
+  if (/цена|стоимост/.test(h) && !/сумма|итог/.test(h)) return "price";
   return null;
 }
 
 function parseNum(raw: unknown): number {
   if (typeof raw === "number") return raw;
   const cleaned = String(raw ?? "")
-    .replace(/\s| /g, "")
+    .replace(/\s| /g, "")
     .replace(/[^\d.,-]/g, "")
     .replace(",", ".");
   const n = parseFloat(cleaned);
   return Number.isFinite(n) ? n : NaN;
+}
+
+// Строка-итог/накладные — не позиция и не раздел, пропускаем целиком.
+function isSummaryRow(name: string): boolean {
+  return /^\s*(итого|всего|в\s*том\s*числе|накладн|подытог)/i.test(name);
 }
 
 interface ColMap {
@@ -78,16 +84,18 @@ function findHeader(matrix: unknown[][]): ColMap | null {
   return null;
 }
 
-function parseSheet(matrix: unknown[][], rows: ParsedRow[]): { skipped: number; total: number } | null {
+function parseSheet(
+  matrix: unknown[][],
+  rows: ParsedRow[],
+  direction?: string
+): { skipped: number; total: number } | null {
   const hdr = findHeader(matrix);
   if (!hdr) return null; // нет заголовка — не каталог
-  // лист-смета (есть «кол-во») пропускаем целиком
-  if (hdr.cols.qty !== undefined) return null;
 
   const c = hdr.cols;
   const nameCol = c.name!;
   const priceCol = c.price!;
-  // плоский режим (колонка категории есть) vs режим разделов (её нет)
+  // категория позиции: направление (при загрузке) → колонка «категория» → раздел-строка
   const flat = c.category !== undefined;
   let skipped = 0;
   let total = 0;
@@ -97,15 +105,16 @@ function parseSheet(matrix: unknown[][], rows: ParsedRow[]): { skipped: number; 
     const row = matrix[r];
     const name = String(row[nameCol] ?? "").trim();
     if (!name) continue;
+    if (isSummaryRow(name)) continue; // «Итого по…», «Всего», «Накладные» — мимо
 
     const price = parseNum(row[priceCol]);
     const article =
       c.article !== undefined ? String(row[c.article] ?? "").trim() || null : null;
     const hasPrice = Number.isFinite(price) && price > 0;
 
-    // режим разделов: строка без цены и артикула — это заголовок раздела
+    // в режиме разделов строка без цены и артикула — заголовок раздела
     if (!flat && !hasPrice && !article) {
-      currentCategory = name;
+      if (!direction) currentCategory = name; // раздел → категория (если направление не задано)
       continue;
     }
 
@@ -115,9 +124,11 @@ function parseSheet(matrix: unknown[][], rows: ParsedRow[]): { skipped: number; 
       continue;
     }
 
-    const category = flat
-      ? String(row[c.category!] ?? "").trim() || "Прочее"
-      : currentCategory;
+    const category = direction
+      ? direction
+      : flat
+        ? String(row[c.category!] ?? "").trim() || "Прочее"
+        : currentCategory;
 
     const cost =
       c.cost !== undefined && Number.isFinite(parseNum(row[c.cost]))
@@ -136,26 +147,42 @@ function parseSheet(matrix: unknown[][], rows: ParsedRow[]): { skipped: number; 
   return { skipped, total };
 }
 
-export function parsePriceFile(buf: Buffer, opts?: { csv?: boolean }): ParseResult {
+export function parsePriceFile(
+  buf: Buffer,
+  opts?: { csv?: boolean; direction?: string }
+): ParseResult {
   const wb = opts?.csv
     ? XLSX.read(buf.toString("utf8"), { type: "string" })
     : XLSX.read(buf, { type: "buffer" });
+
+  const direction = opts?.direction?.trim() || undefined;
+
+  // 1) собираем листы-каталоги (с заголовком), помечаем «есть Кол-во» = лист-смета
+  const candidates: { name: string; matrix: unknown[][]; isEstimate: boolean }[] = [];
+  for (const name of wb.SheetNames) {
+    if (/расходник/i.test(name)) continue; // внутренние расходники/инструмент — не каталог
+    const ws = wb.Sheets[name];
+    if (!ws) continue;
+    const matrix: unknown[][] = XLSX.utils.sheet_to_json(ws, { header: 1, blankrows: false });
+    const hdr = findHeader(matrix);
+    if (!hdr) continue;
+    candidates.push({ name, matrix, isEstimate: hdr.cols.qty !== undefined });
+  }
+
+  // 2) если в файле есть «чистый» прайс (без Кол-во) — листы-сметы пропускаем;
+  //    если ВСЕ листы сметы (шаблоны заказчика) — парсим их (берём Наименование/Ед./Цена)
+  const hasCleanPrice = candidates.some((s) => !s.isEstimate);
 
   const rows: ParsedRow[] = [];
   const sheets: string[] = [];
   let skipped = 0;
   let total = 0;
 
-  for (const name of wb.SheetNames) {
-    const ws = wb.Sheets[name];
-    if (!ws) continue;
-    const matrix: unknown[][] = XLSX.utils.sheet_to_json(ws, {
-      header: 1,
-      blankrows: false,
-    });
-    const res = parseSheet(matrix, rows);
+  for (const s of candidates) {
+    if (s.isEstimate && hasCleanPrice) continue;
+    const res = parseSheet(s.matrix, rows, direction);
     if (res) {
-      sheets.push(name);
+      sheets.push(s.name);
       skipped += res.skipped;
       total += res.total;
     }
