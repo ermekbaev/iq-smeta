@@ -26,6 +26,9 @@ function parseGroups(text: string): string[][] {
 }
 
 export default function SynonymsManager({ isMaintainer }: Props) {
+  // бампается при переносе группы из обзора — чтобы список общей базы перечитался
+  const [globalVersion, setGlobalVersion] = useState(0);
+
   return (
     <div className="space-y-6">
       <GroupEditor
@@ -35,14 +38,139 @@ export default function SynonymsManager({ isMaintainer }: Props) {
         hint="Слова, означающие одно и то же. Подбор работает в обе стороны: скажете «форсунка» — найдёт «сопло», и наоборот. Видны и применяются только в вашем аккаунте."
       />
       {isMaintainer && (
-        <GroupEditor
-          endpoint="/api/settings/synonyms/global"
-          title="Общая база (для всех аккаунтов)"
-          hint="Эти группы применяются при подборе у всех аккаунтов, но в их личных списках не видны. Ведёте и модерируете только вы."
-          accent
-        />
+        <>
+          <GroupEditor
+            endpoint="/api/settings/synonyms/global"
+            title="Общая база (для всех аккаунтов)"
+            hint="Эти группы применяются при подборе у всех аккаунтов, но в их личных списках не видны. Ведёте и модерируете только вы."
+            refreshKey={globalVersion}
+            accent
+          />
+          <ReviewPanel onPromoted={() => setGlobalVersion((v) => v + 1)} />
+        </>
       )}
     </div>
+  );
+}
+
+interface ReviewItem {
+  terms: string[];
+  accounts: string[];
+  inGlobal: boolean;
+}
+
+/** Что добавляют в свои словари другие аккаунты — источник пополнения общей базы. */
+function ReviewPanel({ onPromoted }: { onPromoted: () => void }) {
+  const [items, setItems] = useState<ReviewItem[]>([]);
+  const [busy, setBusy] = useState<string | null>(null);
+  const [msg, setMsg] = useState<string | null>(null);
+  const [onlyNew, setOnlyNew] = useState(true);
+
+  const load = useCallback(() => {
+    fetch("/api/settings/synonyms/review")
+      .then((r) => (r.ok ? r.json() : []))
+      .then(setItems)
+      .catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    load();
+  }, [load]);
+
+  async function promote(terms: string[]) {
+    const key = terms.join("|");
+    setBusy(key);
+    setMsg(null);
+    const res = await fetch("/api/settings/synonyms/global", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ terms }),
+    });
+    setBusy(null);
+    if (res.ok) {
+      setMsg(`Добавлено в общую базу: ${terms.join(" = ")}`);
+      onPromoted();
+      load();
+    } else {
+      const d = await res.json().catch(() => ({}));
+      setMsg(d.error ?? "Не удалось добавить");
+    }
+  }
+
+  const shown = onlyNew ? items.filter((i) => !i.inGlobal) : items;
+  const newCount = items.filter((i) => !i.inGlobal).length;
+
+  return (
+    <section className="space-y-4 rounded-xl border bg-white p-5">
+      <div>
+        <h2 className="font-medium text-gray-900">Что добавляют аккаунты</h2>
+        <p className="mt-1 text-sm text-gray-500">
+          Личные словари всех аккаунтов — чтобы удачные пары переносить в общую базу.
+          Одинаковые группы схлопнуты, сверху — те, которых в общей базе ещё нет.
+        </p>
+      </div>
+
+      <label className="flex items-center gap-2 text-sm text-gray-600">
+        <input
+          type="checkbox"
+          checked={onlyNew}
+          onChange={(e) => setOnlyNew(e.target.checked)}
+          className="rounded border-gray-300"
+        />
+        Показывать только те, которых нет в общей базе ({newCount})
+      </label>
+
+      {msg && <p className="text-sm text-gray-700">{msg}</p>}
+
+      {shown.length === 0 ? (
+        <p className="text-sm text-gray-400">
+          {items.length === 0
+            ? "Пока никто ничего не добавлял."
+            : "Всё, что добавляют аккаунты, уже есть в общей базе."}
+        </p>
+      ) : (
+        <ul className="space-y-2">
+          {shown.map((it) => {
+            const key = it.terms.join("|");
+            return (
+              <li
+                key={key}
+                className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-gray-200 px-3 py-2"
+              >
+                <div className="min-w-0">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="text-sm text-gray-900">{it.terms.join(" = ")}</span>
+                    {it.inGlobal ? (
+                      <span className="rounded-full bg-gray-100 px-2 py-0.5 text-xs text-gray-500">
+                        уже в общей базе
+                      </span>
+                    ) : (
+                      <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs text-amber-800">
+                        нет в общей базе
+                      </span>
+                    )}
+                  </div>
+                  <p className="mt-0.5 text-xs text-gray-500">
+                    {it.accounts.length > 1
+                      ? `${it.accounts.length} аккаунта: ${it.accounts.join(", ")}`
+                      : it.accounts.join(", ")}
+                  </p>
+                </div>
+                {!it.inGlobal && (
+                  <button
+                    onClick={() => promote(it.terms)}
+                    disabled={busy === key}
+                    className="shrink-0 rounded bg-gray-900 px-3 py-1.5 text-sm font-medium text-white hover:bg-gray-700 disabled:opacity-50"
+                  >
+                    {busy === key ? "…" : "В общую базу"}
+                  </button>
+                )}
+              </li>
+            );
+          })}
+        </ul>
+      )}
+    </section>
   );
 }
 
@@ -52,12 +180,14 @@ function GroupEditor({
   title,
   hint,
   accent,
+  refreshKey = 0,
 }: {
   endpoint: string;
   importEndpoint?: string;
   title: string;
   hint: string;
   accent?: boolean;
+  refreshKey?: number; // изменение → перечитать список
 }) {
   const [groups, setGroups] = useState<Group[]>([]);
   const [input, setInput] = useState("");
@@ -75,7 +205,7 @@ function GroupEditor({
 
   useEffect(() => {
     load();
-  }, [load]);
+  }, [load, refreshKey]);
 
   async function add() {
     const terms = input
