@@ -78,11 +78,7 @@ export const yandexAsr: AsrProvider = {
 };
 
 // Один запрос к YandexGPT (system + user) → текст ответа.
-async function yandexComplete(
-  system: string,
-  user: string,
-  maxTokens = 2000
-): Promise<string> {
+async function yandexComplete(system: string, user: string, maxTokens = 2000): Promise<string> {
   const { apiKey, folderId } = cfg();
   const model = process.env.YANDEX_GPT_MODEL || "yandexgpt";
   const res = await fetch(LLM_URL, {
@@ -107,9 +103,6 @@ async function yandexComplete(
 export const yandexLlm: LlmProvider = {
   async extractItems(text: string): Promise<Extraction> {
     return parseExtraction(await yandexComplete(EXTRACT_SYSTEM_PROMPT, text));
-  },
-  complete(system: string, user: string): Promise<string> {
-    return yandexComplete(system, user, 800);
   },
 };
 

@@ -36,12 +36,6 @@ export interface Extraction {
 export interface LlmProvider {
   /** Свободный текст диктовки → заказчик + структурированный список позиций. */
   extractItems(text: string): Promise<Extraction>;
-  /**
-   * Разовый запрос к модели (system + user) → текст ответа.
-   * Для вспомогательных ИИ-фич (помощник синонимов). Есть не у всех провайдеров —
-   * если метод не задан, фича деградирует мягко (работает без ИИ-подсказки).
-   */
-  complete?(system: string, user: string): Promise<string>;
 }
 
 export interface EmbeddingsProvider {

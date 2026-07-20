@@ -10,7 +10,6 @@ interface Group {
 
 interface Props {
   isMaintainer: boolean; // ведёт общую базу (вариант A)
-  aiAvailable: boolean; // провайдер умеет ИИ-подсказки
 }
 
 // строки → группы: одна группа в строке, слова через запятую/точку с запятой/таб
@@ -26,22 +25,20 @@ function parseGroups(text: string): string[][] {
     .filter((g) => g.length >= 2);
 }
 
-export default function SynonymsManager({ isMaintainer, aiAvailable }: Props) {
+export default function SynonymsManager({ isMaintainer }: Props) {
   return (
     <div className="space-y-6">
       <GroupEditor
         endpoint="/api/settings/synonyms"
         importEndpoint="/api/settings/synonyms/import"
-        aiAvailable={aiAvailable}
         title="Мои синонимы"
-        hint="Слова, означающие одно и то же. Подбор работает в обе стороны: скажете «форсунка» — найдёт «сопло», и наоборот."
+        hint="Слова, означающие одно и то же. Подбор работает в обе стороны: скажете «форсунка» — найдёт «сопло», и наоборот. Видны и применяются только в вашем аккаунте."
       />
       {isMaintainer && (
         <GroupEditor
           endpoint="/api/settings/synonyms/global"
-          aiAvailable={aiAvailable}
           title="Общая база (для всех аккаунтов)"
-          hint="Эти группы применяются при подборе у всех аккаунтов, но в их личных списках не видны. Ведёте только вы."
+          hint="Эти группы применяются при подборе у всех аккаунтов, но в их личных списках не видны. Ведёте и модерируете только вы."
           accent
         />
       )}
@@ -52,14 +49,12 @@ export default function SynonymsManager({ isMaintainer, aiAvailable }: Props) {
 function GroupEditor({
   endpoint,
   importEndpoint,
-  aiAvailable,
   title,
   hint,
   accent,
 }: {
   endpoint: string;
   importEndpoint?: string;
-  aiAvailable: boolean;
   title: string;
   hint: string;
   accent?: boolean;
@@ -68,9 +63,6 @@ function GroupEditor({
   const [input, setInput] = useState("");
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
-  const [suggestions, setSuggestions] = useState<string[]>([]);
-  // предупреждение ИИ: слова похоже не синонимы — просим подтвердить
-  const [warn, setWarn] = useState<{ terms: string[]; note: string } | null>(null);
   const [showImport, setShowImport] = useState(false);
   const [importText, setImportText] = useState("");
 
@@ -85,15 +77,15 @@ function GroupEditor({
     load();
   }, [load]);
 
-  function termsFromInput(): string[] {
-    return input
+  async function add() {
+    const terms = input
       .split(/[,;]+/)
       .map((t) => t.trim())
       .filter(Boolean);
-  }
-
-  // фактическое создание группы
-  async function create(terms: string[]) {
+    if (terms.length < 2) {
+      setMsg("Введите минимум два слова через запятую: «сопло, форсунка»");
+      return;
+    }
     setBusy(true);
     setMsg(null);
     const res = await fetch(endpoint, {
@@ -106,76 +98,10 @@ function GroupEditor({
       const g = await res.json();
       setGroups((prev) => [g, ...prev]);
       setInput("");
-      setSuggestions([]);
-      setWarn(null);
     } else {
       const d = await res.json().catch(() => ({}));
       setMsg(d.error ?? "Не удалось добавить");
     }
-  }
-
-  // добавление с проверкой ИИ (если доступен): сомнительное — под подтверждение
-  async function add() {
-    const terms = termsFromInput();
-    if (terms.length < 2) {
-      setMsg("Введите минимум два слова через запятую: «сопло, форсунка»");
-      return;
-    }
-    setWarn(null);
-    if (aiAvailable) {
-      setBusy(true);
-      try {
-        const r = await fetch("/api/settings/synonyms/ai", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ action: "validate", terms }),
-        });
-        if (r.ok) {
-          const v = await r.json();
-          if (v.ok === false) {
-            setBusy(false);
-            setWarn({ terms, note: v.note || "ИИ считает эти слова разными по смыслу." });
-            return;
-          }
-        }
-      } catch {
-        // ИИ недоступен — не блокируем
-      }
-      setBusy(false);
-    }
-    await create(terms);
-  }
-
-  // ИИ подсказывает синонимы к первому слову ввода
-  async function suggest() {
-    const first = termsFromInput()[0] ?? input.trim();
-    if (!first) {
-      setMsg("Введите слово, к которому подобрать синонимы");
-      return;
-    }
-    setBusy(true);
-    setMsg(null);
-    try {
-      const r = await fetch("/api/settings/synonyms/ai", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "suggest", term: first }),
-      });
-      const d = r.ok ? await r.json() : { suggestions: [] };
-      setSuggestions(d.suggestions ?? []);
-      if (!d.suggestions?.length) setMsg("ИИ не нашёл синонимов к этому слову");
-    } catch {
-      setMsg("ИИ недоступен");
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  function addSuggestion(word: string) {
-    const cur = termsFromInput();
-    if (cur.some((t) => t.toLowerCase() === word.toLowerCase())) return;
-    setInput((prev) => (prev.trim() ? `${prev.trim()}, ${word}` : word));
-    setSuggestions((prev) => prev.filter((s) => s !== word));
   }
 
   async function runImport() {
@@ -240,17 +166,6 @@ function GroupEditor({
           placeholder="сопло, форсунка"
           className="min-w-0 flex-1 rounded border border-gray-300 px-3 py-2 text-sm"
         />
-        {aiAvailable && (
-          <button
-            type="button"
-            onClick={suggest}
-            disabled={busy}
-            title="ИИ предложит синонимы к первому слову"
-            className="rounded border border-gray-300 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 disabled:opacity-50"
-          >
-            Подсказать ИИ
-          </button>
-        )}
         <button
           onClick={add}
           disabled={busy}
@@ -259,47 +174,6 @@ function GroupEditor({
           Добавить
         </button>
       </div>
-
-      {/* ИИ-подсказки — клик добавляет слово во ввод */}
-      {suggestions.length > 0 && (
-        <div className="flex flex-wrap items-center gap-2">
-          <span className="text-xs text-gray-500">ИИ предлагает:</span>
-          {suggestions.map((s) => (
-            <button
-              key={s}
-              type="button"
-              onClick={() => addSuggestion(s)}
-              className="rounded-full border border-gray-300 px-3 py-1 text-sm text-gray-700 hover:border-gray-900 hover:text-gray-900"
-            >
-              + {s}
-            </button>
-          ))}
-        </div>
-      )}
-
-      {/* Предупреждение ИИ о сомнительной группе — финальное «да» за человеком */}
-      {warn && (
-        <div className="space-y-2 rounded-lg border border-amber-300 bg-amber-50 p-3">
-          <p className="text-sm text-amber-800">
-            ИИ сомневается: «{warn.terms.join(" = ")}». {warn.note}
-          </p>
-          <div className="flex gap-2">
-            <button
-              onClick={() => create(warn.terms)}
-              disabled={busy}
-              className="rounded bg-gray-900 px-3 py-1.5 text-sm font-medium text-white hover:bg-gray-700 disabled:opacity-50"
-            >
-              Всё равно добавить
-            </button>
-            <button
-              onClick={() => setWarn(null)}
-              className="rounded px-3 py-1.5 text-sm text-gray-600 hover:bg-gray-100"
-            >
-              Отмена
-            </button>
-          </div>
-        </div>
-      )}
 
       {/* Импорт списком (только личные) */}
       {importEndpoint && (
