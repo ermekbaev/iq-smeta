@@ -103,7 +103,11 @@ export default function RecordPage() {
   }
 
   async function buildDraft(sourceText: string = text) {
-    if (!sourceText.trim()) return;
+    // ранние выходы обязаны гасить индикатор: сюда приходят после «Распознаю речь…»
+    if (!sourceText.trim()) {
+      setBusy(null);
+      return setError("Речь не распознана — продиктуйте ещё раз или введите текст.");
+    }
     setError(null);
 
     // голосовая команда в начале диктовки («бери из дренажа, 10 труб…»)
@@ -113,9 +117,15 @@ export default function RecordPage() {
       categories.map((c) => c.category)
     );
     const activeCategory = cmd.category ?? category;
-    if (cmd.category) setCategory(cmd.category);
+    if (cmd.category) {
+      setCategory(cmd.category);
+      // команду убираем и из самого текста: иначе при повторной сборке она
+      // распозналась бы снова и сбросить категорию было бы невозможно
+      setText(cmd.text);
+    }
     const bodyText = cmd.category ? cmd.text : sourceText;
     if (!bodyText.trim()) {
+      setBusy(null);
       return setError(
         `Категория «${cmd.category}» выбрана, но позиций не слышно — продиктуйте их.`
       );

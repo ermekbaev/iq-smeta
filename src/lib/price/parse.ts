@@ -57,9 +57,35 @@ function parseNum(raw: unknown): number {
   return Number.isFinite(n) ? n : NaN;
 }
 
-// Строка-итог/накладные — не позиция и не раздел, пропускаем целиком.
+// Строка-итог/начисление — не позиция и не раздел, пропускаем целиком.
+// «Сметная прибыль», «Накладные расходы» и т.п. — это проценты от сметы,
+// а не товар: в каталоге они дали бы позицию с ценой в десятки тысяч.
 function isSummaryRow(name: string): boolean {
-  return /^\s*(итого|всего|в\s*том\s*числе|накладн|подытог)/i.test(name);
+  // ВНИМАНИЕ: \w в JS — только латиница, для кириллицы нужен явный [а-яё]
+  return /^\s*(итого|всего|в\s*том\s*числе|накладн|подытог|сметн[а-яё]*\s+прибыл|непредвиден|расходн[а-яё]*\s+и\s+малоценн)/i.test(
+    name
+  );
+}
+
+// Подпись формы («ЗАКАЗЧИК:», «Исполнитель:») — не раздел каталога.
+function isFormLabel(name: string): boolean {
+  return /:\s*$/.test(name);
+}
+
+/**
+ * Есть ли в строке числа вне колонок «№» и «наименование».
+ * Заголовок раздела — это только текст. Если числа есть, а цена не распозналась,
+ * то это кривая позиция (в шаблонах внизу листа лежит приложение-прайс вида
+ * «Бордюр садовый 80 мм | 595» со сдвигом колонок) — категорией её делать нельзя,
+ * иначе название товара становится разделом.
+ */
+function hasStrayNumber(row: unknown[], nameCol: number): boolean {
+  for (let i = 1; i < row.length; i++) {
+    if (i === nameCol) continue;
+    const n = parseNum(row[i]);
+    if (Number.isFinite(n) && n > 0) return true;
+  }
+  return false;
 }
 
 interface ColMap {
@@ -114,7 +140,14 @@ function parseSheet(
 
     // в режиме разделов строка без цены и артикула — заголовок раздела
     if (!flat && !hasPrice && !article) {
-      if (!direction) currentCategory = name; // раздел → категория (если направление не задано)
+      if (hasStrayNumber(row, nameCol)) {
+        // не заголовок, а позиция со съехавшими колонками — в каталог не берём,
+        // но и категорией не делаем; показываем в «пропущено»
+        total++;
+        skipped++;
+      } else if (!direction && !isFormLabel(name)) {
+        currentCategory = name; // настоящий заголовок раздела → категория
+      }
       continue;
     }
 
@@ -123,6 +156,9 @@ function parseSheet(
       skipped++;
       continue;
     }
+
+    const unit =
+      c.unit !== undefined ? String(row[c.unit] ?? "шт").trim() || "шт" : "шт";
 
     const category = direction
       ? direction
@@ -138,7 +174,7 @@ function parseSheet(
     rows.push({
       article,
       name,
-      unit: c.unit !== undefined ? String(row[c.unit] ?? "шт").trim() || "шт" : "шт",
+      unit,
       price,
       cost: cost && cost > 0 ? cost : null,
       category,
