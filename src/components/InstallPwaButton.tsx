@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useSyncExternalStore } from "react";
 
 // Событие установки PWA (нестандартный тип — объявляем минимально).
 interface BeforeInstallPromptEvent extends Event {
@@ -8,37 +8,52 @@ interface BeforeInstallPromptEvent extends Event {
   userChoice: Promise<{ outcome: "accepted" | "dismissed" }>;
 }
 
+// Браузерные значения читаем через useSyncExternalStore, а не setState в эффекте:
+// на сервере отдаём false, на клиенте — реальное состояние, без лишнего рендера.
+
+const noopSubscribe = () => () => {};
+const serverFalse = () => false;
+
+// «appinstalled» уже случился в этой сессии: display-mode обновляется не сразу,
+// поэтому запоминаем факт установки отдельно.
+let installedInSession = false;
+
+function subscribeInstalled(onChange: () => void) {
+  const handler = () => {
+    installedInSession = true;
+    onChange();
+  };
+  window.addEventListener("appinstalled", handler);
+  return () => window.removeEventListener("appinstalled", handler);
+}
+
+function getInstalled(): boolean {
+  return (
+    installedInSession ||
+    window.matchMedia("(display-mode: standalone)").matches ||
+    (window.navigator as unknown as { standalone?: boolean }).standalone === true
+  );
+}
+
+function getIsIos(): boolean {
+  return /iphone|ipad|ipod/.test(window.navigator.userAgent.toLowerCase());
+}
+
 export default function InstallPwaButton() {
   const [deferred, setDeferred] = useState<BeforeInstallPromptEvent | null>(null);
-  const [installed, setInstalled] = useState(false);
-  const [isIos, setIsIos] = useState(false);
+  const installed = useSyncExternalStore(subscribeInstalled, getInstalled, serverFalse);
+  const isIos = useSyncExternalStore(noopSubscribe, getIsIos, serverFalse);
 
   useEffect(() => {
-    // уже открыто как установленное приложение?
-    const standalone =
-      window.matchMedia("(display-mode: standalone)").matches ||
-      (window.navigator as unknown as { standalone?: boolean }).standalone === true;
-    if (standalone) {
-      setInstalled(true);
-      return;
-    }
-
-    const ua = window.navigator.userAgent.toLowerCase();
-    setIsIos(/iphone|ipad|ipod/.test(ua));
+    if (installed) return; // уже установлено — свою кнопку не готовим
 
     const onPrompt = (e: Event) => {
       e.preventDefault(); // не показываем авто-баннер, покажем свою кнопку
       setDeferred(e as BeforeInstallPromptEvent);
     };
-    const onInstalled = () => setInstalled(true);
-
     window.addEventListener("beforeinstallprompt", onPrompt);
-    window.addEventListener("appinstalled", onInstalled);
-    return () => {
-      window.removeEventListener("beforeinstallprompt", onPrompt);
-      window.removeEventListener("appinstalled", onInstalled);
-    };
-  }, []);
+    return () => window.removeEventListener("beforeinstallprompt", onPrompt);
+  }, [installed]);
 
   if (installed) return null;
 

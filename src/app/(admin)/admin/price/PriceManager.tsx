@@ -24,7 +24,7 @@ export default function PriceManager() {
   const [direction, setDirection] = useState("");
   const [uploading, setUploading] = useState(false);
   const [, startTransition] = useTransition();
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true); // грузим сразу на монтировании
 
   async function load(query = "", cat = catFilter) {
     setLoading(true);
@@ -41,9 +41,17 @@ export default function PriceManager() {
   }
 
   useEffect(() => {
-    load();
-    void loadCategories();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // на монтировании состояние синхронно не трогаем (иначе каскадный рендер):
+    // индикатор уже включён начальным loading=true, остальное — после await
+    void (async () => {
+      const [itemsRes, catsRes] = await Promise.all([
+        fetch("/api/admin/price?q=&category="),
+        fetch("/api/categories"),
+      ]);
+      setItems(itemsRes.ok ? await itemsRes.json() : []);
+      setCategories(catsRes.ok ? await catsRes.json() : []);
+      setLoading(false);
+    })();
   }, []);
 
   async function onUpload() {
