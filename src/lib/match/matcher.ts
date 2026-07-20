@@ -40,10 +40,16 @@ export interface MatchResult {
   source: "alias" | "auto" | "none";
 }
 
-export async function matchItem(userId: string, name: string): Promise<MatchResult> {
+export async function matchItem(
+  userId: string,
+  name: string,
+  category?: string // сузить подбор до раздела прайса
+): Promise<MatchResult> {
   const normalized = normalizeText(name);
 
-  // Слой 1 — выученное сопоставление (в рамках аккаунта)
+  // Слой 1 — выученное сопоставление (в рамках аккаунта).
+  // Если задан фильтр категории, алиас из другого раздела игнорируем —
+  // человек явно сказал «бери из X», это сильнее выученной привычки.
   const alias = await prisma.alias.findUnique({
     where: { userId_spokenText: { userId, spokenText: normalized } },
     include: {
@@ -52,7 +58,7 @@ export async function matchItem(userId: string, name: string): Promise<MatchResu
       },
     },
   });
-  if (alias) {
+  if (alias && (!category || alias.priceItem.category === category)) {
     const p = alias.priceItem;
     const best: Candidate = {
       id: p.id,
@@ -80,7 +86,7 @@ export async function matchItem(userId: string, name: string): Promise<MatchResu
     // расширяем запрос синонимами аккаунта перед эмбеддингом (в обе стороны)
     const expanded = await expandWithSynonyms(userId, name);
     const vector = await ai.embeddings.embed(expanded);
-    raw = await searchSimilar(userId, vector, 5);
+    raw = await searchSimilar(userId, vector, 5, category);
   } catch {
     return {
       query: name,

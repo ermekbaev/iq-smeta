@@ -33,9 +33,20 @@ export interface MatchCandidate {
 export async function searchSimilar(
   userId: string,
   vector: number[],
-  limit = 5
+  limit = 5,
+  category?: string // сузить подбор до раздела («бери из дренажа»)
 ): Promise<MatchCandidate[]> {
   const vec = toSqlVector(vector);
+  if (category) {
+    return prisma.$queryRaw<MatchCandidate[]>`
+      SELECT id, name, unit, price::text AS price, category::text AS category,
+             embedding <=> ${vec}::vector AS distance
+      FROM price_items
+      WHERE user_id = ${userId} AND embedding IS NOT NULL AND category = ${category}
+      ORDER BY embedding <=> ${vec}::vector
+      LIMIT ${limit}
+    `;
+  }
   return prisma.$queryRaw<MatchCandidate[]>`
     SELECT id, name, unit, price::text AS price, category::text AS category,
            embedding <=> ${vec}::vector AS distance

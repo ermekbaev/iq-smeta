@@ -15,6 +15,8 @@ const schema = z.object({
       })
     )
     .min(1),
+  // сузить подбор до раздела прайса («бери из дренажа» или выбор вручную)
+  category: z.string().min(1).max(120).optional(),
 });
 
 // POST /api/match — позиции из речи → подбор по прайсу с кандидатами (PLAN 3.2).
@@ -28,9 +30,10 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Некорректные позиции" }, { status: 400 });
   }
 
+  const { items, category } = parsed.data;
   const results = await Promise.all(
-    parsed.data.items.map(async (it) => {
-      const m = await matchItem(userId, it.name);
+    items.map(async (it) => {
+      const m = await matchItem(userId, it.name, category);
       return { input: it, match: m };
     })
   );

@@ -2,10 +2,11 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { WavRecorder } from "@/lib/audio/wav-recorder";
 import BottomNav from "@/components/BottomNav";
 import UploadButton from "@/components/UploadButton";
+import { detectCategoryCommand } from "@/lib/match/category";
 
 interface Candidate {
   id: string;
@@ -42,8 +43,18 @@ export default function RecordPage() {
   const [subject, setSubject] = useState("");
   const [clientName, setClientName] = useState("");
   const [logo, setLogo] = useState<string | null>(null);
+  // категории прайса: сужают подбор («бери из дренажа» или выбор вручную)
+  const [categories, setCategories] = useState<{ category: string; count: number }[]>([]);
+  const [category, setCategory] = useState("");
 
   const recorderRef = useRef<WavRecorder | null>(null);
+
+  useEffect(() => {
+    fetch("/api/categories")
+      .then((r) => (r.ok ? r.json() : []))
+      .then(setCategories)
+      .catch(() => {});
+  }, []);
 
   const money = (n: number) =>
     n.toLocaleString("ru-RU", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -94,12 +105,28 @@ export default function RecordPage() {
   async function buildDraft(sourceText: string = text) {
     if (!sourceText.trim()) return;
     setError(null);
+
+    // голосовая команда в начале диктовки («бери из дренажа, 10 труб…»)
+    // перебивает выбранное вручную: человек сказал явно — значит, так и надо
+    const cmd = detectCategoryCommand(
+      sourceText,
+      categories.map((c) => c.category)
+    );
+    const activeCategory = cmd.category ?? category;
+    if (cmd.category) setCategory(cmd.category);
+    const bodyText = cmd.category ? cmd.text : sourceText;
+    if (!bodyText.trim()) {
+      return setError(
+        `Категория «${cmd.category}» выбрана, но позиций не слышно — продиктуйте их.`
+      );
+    }
+
     setBusy("Извлекаю позиции…");
     try {
       const ex = await fetch("/api/extract", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ text: sourceText }),
+        body: JSON.stringify({ text: bodyText }),
       });
       const exData = await ex.json();
       if (!ex.ok) {
@@ -114,7 +141,10 @@ export default function RecordPage() {
       const mt = await fetch("/api/match", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ items: exData.items }),
+        body: JSON.stringify({
+          items: exData.items,
+          ...(activeCategory ? { category: activeCategory } : {}),
+        }),
       });
       const mtData = await mt.json();
       setBusy(null);
@@ -139,7 +169,8 @@ export default function RecordPage() {
             unit: b?.unit ?? r.input.unit,
             price: hasSpokenPrice ? (spokenPrice as number) : b?.price ?? 0,
             priceItemId: b?.id ?? null,
-            category: b?.category ?? "Прочее",
+            // ручная позиция при выбранной категории попадает в неё же
+            category: b?.category ?? activeCategory ?? "Прочее",
             candidates: r.match.candidates,
             needsConfirm: hasSpokenPrice ? false : r.match.needsConfirm,
           };
@@ -266,6 +297,28 @@ export default function RecordPage() {
             </p>
           </div>
 
+          {categories.length > 0 && (
+            <section className="space-y-2 rounded-xl border bg-white p-5">
+              <h2 className="text-sm font-medium text-gray-500">Категория подбора</h2>
+              <select
+                value={category}
+                onChange={(e) => setCategory(e.target.value)}
+                className="w-full rounded border border-gray-300 px-3 py-2 text-sm"
+              >
+                <option value="">Весь прайс</option>
+                {categories.map((c) => (
+                  <option key={c.category} value={c.category}>
+                    {c.category} ({c.count})
+                  </option>
+                ))}
+              </select>
+              <p className="text-xs text-gray-500">
+                Сужает поиск по прайсу до раздела. Можно и голосом — начните диктовку
+                словами <b>«бери из дренажа…»</b>, категория подхватится сама.
+              </p>
+            </section>
+          )}
+
           <section className="space-y-2 rounded-xl border bg-white p-5">
             <h2 className="text-sm font-medium text-gray-500">Текст диктовки</h2>
             <textarea
@@ -351,6 +404,23 @@ export default function RecordPage() {
           </section>
 
           <section className="space-y-3 rounded-xl border bg-white p-5">
+            {category && (
+              <p className="flex flex-wrap items-center gap-2 text-xs text-gray-500">
+                <span className="rounded-full bg-gray-100 px-2 py-0.5 text-gray-700">
+                  Подбор из категории: <b>{category}</b>
+                </span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setCategory("");
+                    setStage("record");
+                  }}
+                  className="text-gray-500 underline hover:text-gray-900"
+                >
+                  искать по всему прайсу
+                </button>
+              </p>
+            )}
             <p className="text-xs text-gray-500">
               Жёлтым отмечены позиции с низкой уверенностью подбора — проверьте выбор.
             </p>

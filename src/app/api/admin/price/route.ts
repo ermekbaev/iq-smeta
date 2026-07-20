@@ -22,11 +22,14 @@ export async function GET(req: Request) {
   if (gate instanceof NextResponse) return gate;
   const { userId } = gate;
 
-  const q = new URL(req.url).searchParams.get("q")?.trim();
+  const params = new URL(req.url).searchParams;
+  const q = params.get("q")?.trim();
+  const category = params.get("category")?.trim();
   const items = await prisma.priceItem.findMany({
     where: {
       userId,
       ...(q ? { name: { contains: q, mode: "insensitive" as const } } : {}),
+      ...(category ? { category } : {}),
     },
     orderBy: { name: "asc" },
     take: 500,

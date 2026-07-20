@@ -16,6 +16,8 @@ interface Item {
 export default function PriceManager() {
   const [items, setItems] = useState<Item[]>([]);
   const [q, setQ] = useState("");
+  const [categories, setCategories] = useState<{ category: string; count: number }[]>([]);
+  const [catFilter, setCatFilter] = useState("");
   const [msg, setMsg] = useState<string | null>(null);
   const [editing, setEditing] = useState<Item | null>(null);
   const [file, setFile] = useState<File | null>(null);
@@ -24,15 +26,24 @@ export default function PriceManager() {
   const [, startTransition] = useTransition();
   const [loading, setLoading] = useState(false);
 
-  async function load(query = "") {
+  async function load(query = "", cat = catFilter) {
     setLoading(true);
-    const res = await fetch(`/api/admin/price?q=${encodeURIComponent(query)}`);
+    const res = await fetch(
+      `/api/admin/price?q=${encodeURIComponent(query)}&category=${encodeURIComponent(cat)}`
+    );
     setItems(res.ok ? await res.json() : []);
     setLoading(false);
   }
 
+  async function loadCategories() {
+    const res = await fetch("/api/categories");
+    setCategories(res.ok ? await res.json() : []);
+  }
+
   useEffect(() => {
     load();
+    void loadCategories();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   async function onUpload() {
@@ -60,6 +71,7 @@ export default function PriceManager() {
     );
     setFile(null);
     setDirection("");
+    void loadCategories(); // после загрузки могли появиться новые разделы
     startTransition(() => void load(q));
   }
 
@@ -125,17 +137,36 @@ export default function PriceManager() {
       </section>
 
       <section className="rounded-xl border bg-white p-5">
-        <div className="mb-3 flex items-center justify-between gap-3">
+        <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
           <h2 className="font-medium text-gray-900">Позиции</h2>
-          <input
-            value={q}
-            onChange={(e) => {
-              setQ(e.target.value);
-              void load(e.target.value);
-            }}
-            placeholder="Поиск…"
-            className="rounded border border-gray-300 px-3 py-1.5 text-sm outline-none focus:border-gray-900"
-          />
+          <div className="flex flex-wrap items-center gap-2">
+            {categories.length > 0 && (
+              <select
+                value={catFilter}
+                onChange={(e) => {
+                  setCatFilter(e.target.value);
+                  void load(q, e.target.value);
+                }}
+                className="rounded border border-gray-300 px-3 py-1.5 text-sm outline-none focus:border-gray-900"
+              >
+                <option value="">Все разделы</option>
+                {categories.map((c) => (
+                  <option key={c.category} value={c.category}>
+                    {c.category} ({c.count})
+                  </option>
+                ))}
+              </select>
+            )}
+            <input
+              value={q}
+              onChange={(e) => {
+                setQ(e.target.value);
+                void load(e.target.value);
+              }}
+              placeholder="Поиск…"
+              className="rounded border border-gray-300 px-3 py-1.5 text-sm outline-none focus:border-gray-900"
+            />
+          </div>
         </div>
 
         {loading ? (
