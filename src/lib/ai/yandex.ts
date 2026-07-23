@@ -11,7 +11,7 @@
 
 import { AsrProvider, EmbeddingsProvider, LlmProvider, Extraction } from "./types";
 import { EXTRACT_SYSTEM_PROMPT, parseExtraction } from "./prompt";
-import { concurrentMap, withRetry } from "./util";
+import { withRetry } from "./util";
 
 export const YANDEX_EMBEDDING_DIM = 256;
 
@@ -125,8 +125,21 @@ export const yandexEmbeddings: EmbeddingsProvider = {
       return data.embedding;
     });
   },
-  // У Яндекса нет батч-эндпоинта — параллелим с ограничением (4 запроса).
+  // У Яндекса низкая квота «запросов/сек» на эмбеддинги — параллель по 4 её
+  // превышала (429 на больших прайсах). Идём последовательно с шагом-паузой
+  // (~1 запрос/сек), withRetry остаётся страховкой на редкие 429.
+  // Шаг настраивается: YANDEX_EMBED_INTERVAL_MS (0 = без паузы, если квота выше).
   async embedBatch(texts: string[]): Promise<number[][]> {
-    return concurrentMap(texts, 4, (t) => this.embed(t));
+    const interval = Number(process.env.YANDEX_EMBED_INTERVAL_MS ?? 1100);
+    const out: number[][] = [];
+    for (let i = 0; i < texts.length; i++) {
+      const start = Date.now();
+      out.push(await this.embed(texts[i]));
+      if (interval > 0 && i < texts.length - 1) {
+        const wait = interval - (Date.now() - start);
+        if (wait > 0) await new Promise((r) => setTimeout(r, wait));
+      }
+    }
+    return out;
   },
 };
