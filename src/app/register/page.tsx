@@ -6,6 +6,7 @@ import { Prisma } from "@prisma/client";
 import { signIn, auth } from "@/auth";
 import { AuthError } from "next-auth";
 import { prisma } from "@/lib/prisma";
+import PasswordField from "@/components/PasswordField";
 
 const schema = z.object({
   email: z.string().email(),
@@ -90,16 +91,7 @@ export default async function RegisterPage({
             className="w-full rounded border border-gray-300 px-3 py-2 text-gray-900 outline-none focus:border-gray-900"
           />
         </label>
-        <label className="block space-y-1">
-          <span className="text-sm text-gray-700">Пароль</span>
-          <input
-            name="password"
-            type="password"
-            required
-            minLength={8}
-            className="w-full rounded border border-gray-300 px-3 py-2 text-gray-900 outline-none focus:border-gray-900"
-          />
-        </label>
+        <PasswordField minLength={8} autoComplete="new-password" />
         <label className="block space-y-1">
           <span className="text-sm text-gray-700">Код-приглашение</span>
           <input

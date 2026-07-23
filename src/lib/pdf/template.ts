@@ -112,10 +112,29 @@ export function estimateHtml(d: EstimatePdfData): string {
   const logo = imgSrc(d.logo) || imgSrc(c.logoUrl);
   const stamp = imgSrc(c.stampUrl);
   const signature = imgSrc(c.signatureUrl);
+  const signer = (c.signer ?? "").trim();
   const contactLines = (c.contactLines.length ? c.contactLines : [c.name, c.contacts])
     .filter(Boolean)
     .map((l) => esc(l))
     .join("<br>");
+
+  // Блок подписи адаптивный: печать высокая — под неё резервируем место, без неё
+  // блок компактный. Имя подписанта дописываем только если оно задано (иначе
+  // у «бедного» аккаунта висел бы «______ / » без фамилии).
+  const signLine = signer
+    ? `______________&nbsp;&nbsp;/&nbsp;&nbsp;${esc(signer)}`
+    : `______________`;
+  const signBlock =
+    signature || stamp || signer
+      ? `
+  <div class="sign" style="min-height:${stamp ? 160 : 40}px">
+    <span class="line">
+      ${signature ? `<img class="sig" src="${signature}" alt="">` : ""}
+      ${signLine}
+      ${stamp ? `<img class="stamp" src="${stamp}" alt="">` : ""}
+    </span>
+  </div>`
+      : "";
 
   return `<!doctype html>
 <html lang="ru"><head><meta charset="utf-8"><style>
@@ -164,13 +183,6 @@ export function estimateHtml(d: EstimatePdfData): string {
       <tr class="total grand"><td class="lbl" colspan="4">Общая стоимость под ключ:</td><td class="r">${money(d.total)} ₽</td></tr>
     </tbody>
   </table>
-
-  <div class="sign">
-    <span class="line">
-      ${signature ? `<img class="sig" src="${signature}" alt="">` : ""}
-      ______________&nbsp;&nbsp;/&nbsp;&nbsp;${esc(c.signer)}
-      ${stamp ? `<img class="stamp" src="${stamp}" alt="">` : ""}
-    </span>
-  </div>
+${signBlock}
 </body></html>`;
 }

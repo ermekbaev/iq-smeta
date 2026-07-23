@@ -2,6 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { signIn, auth } from "@/auth";
 import { AuthError } from "next-auth";
+import PasswordField from "@/components/PasswordField";
 
 export default async function LoginPage({
   searchParams,
@@ -52,15 +53,7 @@ export default async function LoginPage({
             className="w-full rounded border border-gray-300 px-3 py-2 text-gray-900 outline-none focus:border-gray-900"
           />
         </label>
-        <label className="block space-y-1">
-          <span className="text-sm text-gray-700">Пароль</span>
-          <input
-            name="password"
-            type="password"
-            required
-            className="w-full rounded border border-gray-300 px-3 py-2 text-gray-900 outline-none focus:border-gray-900"
-          />
-        </label>
+        <PasswordField autoComplete="current-password" />
         <button
           type="submit"
           className="w-full rounded bg-gray-900 px-3 py-2 font-medium text-white hover:bg-gray-700"
