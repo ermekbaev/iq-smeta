@@ -46,6 +46,8 @@ export default function RecordPage() {
   // категории прайса: сужают подбор («бери из дренажа» или выбор вручную)
   const [categories, setCategories] = useState<{ category: string; count: number }[]>([]);
   const [category, setCategory] = useState("");
+  // чистый голос: позиции берём как надиктовано, без подбора по прайсу
+  const [pureVoice, setPureVoice] = useState(false);
 
   const recorderRef = useRef<WavRecorder | null>(null);
 
@@ -146,6 +148,27 @@ export default function RecordPage() {
       // объект и заказчик из речи → поля КП; не затираем ручной ввод
       if (exData.object) setObjectName((prev) => prev || exData.object);
       if (exData.client) setClientName((prev) => prev || exData.client);
+
+      // чистый голос: не обращаемся к прайсу — позиции как надиктовано
+      if (pureVoice) {
+        const draft: Line[] = exData.items.map(
+          (it: { name: string; qty: number; unit: string; price?: number }) => ({
+            spokenText: it.name,
+            name: it.name,
+            qty: it.qty,
+            unit: it.unit,
+            price: typeof it.price === "number" && it.price > 0 ? it.price : 0,
+            priceItemId: null,
+            category: activeCategory ?? "Прочее",
+            candidates: [],
+            needsConfirm: false,
+          })
+        );
+        setBusy(null);
+        setLines(draft);
+        setStage("draft");
+        return;
+      }
 
       setBusy("Подбираю по прайсу…");
       const mt = await fetch("/api/match", {
@@ -305,9 +328,19 @@ export default function RecordPage() {
                 ? "Идёт запись… надиктуйте материалы и работы."
                 : "Нажмите и продиктуйте позиции, либо введите текст ниже."}
             </p>
+            <label className="flex items-center gap-2 text-sm text-gray-600">
+              <input
+                type="checkbox"
+                checked={pureVoice}
+                onChange={(e) => setPureVoice(e.target.checked)}
+                className="rounded border-gray-300"
+              />
+              Чистый голос — не подбирать по прайсу (наименование, ед. и цену беру как
+              надиктовано)
+            </label>
           </div>
 
-          {categories.length > 0 && (
+          {!pureVoice && categories.length > 0 && (
             <section className="space-y-2 rounded-xl border bg-white p-5">
               <h2 className="text-sm font-medium text-gray-500">Категория подбора</h2>
               <select
