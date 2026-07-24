@@ -43,11 +43,6 @@ function cap(s: string): string {
   return t ? t.charAt(0).toUpperCase() + t.slice(1) : t;
 }
 
-// Полностью в верхний регистр (название объекта в КП).
-function upper(s: string): string {
-  return s.trim().toUpperCase();
-}
-
 /**
  * Убирает слово «объект» из начала названия, чтобы в КП не выходило
  * «по объекту: ОБЪЕКТ ПАВЛОВО». Заодно снимает предлог после него:
@@ -141,9 +136,14 @@ export function estimateHtml(d: EstimatePdfData): string {
   * { box-sizing: border-box; }
   body { font-family: 'DejaVu Sans', Arial, sans-serif; color: #111; font-size: 12px; margin: 28px; background: #fff; }
   .head { display: flex; justify-content: space-between; align-items: flex-start; gap: 24px; margin-bottom: 22px; }
-  .logo { height: 60px; width: auto; max-width: 240px; object-fit: contain; }
+  /* Лого в фиксированной рамке: у всех компаний одинаковый размер независимо
+     от исходного файла (contain вписывает, пропорции не рвутся). */
+  .logo-box { width: 200px; height: 64px; flex: 0 0 200px; }
+  .logo { width: 100%; height: 100%; object-fit: contain; object-position: left center; }
   .brand { font-size: 22px; font-weight: 700; }
-  .contacts { text-align: right; font-size: 12px; line-height: 1.5; color: #222; }
+  /* Контакты — своя рамка, длинный адрес переносится, а не тянет строку. */
+  .contacts { text-align: right; font-size: 12px; line-height: 1.5; color: #222;
+              max-width: 280px; flex: 0 1 280px; word-wrap: break-word; }
   h1 { font-size: 15px; font-weight: 700; text-align: center; margin: 0 0 6px; }
   .object { text-align: center; font-size: 13px; margin: 0 0 16px; }
   table { width: 100%; border-collapse: collapse; }
@@ -163,15 +163,17 @@ export function estimateHtml(d: EstimatePdfData): string {
   .sign .stamp { position: absolute; left: 240px; bottom: -95px; height: 155px; width: 155px; object-fit: contain; opacity: .92; }
 </style></head><body>
   <div class="head">
-    <div>
-      ${logo ? `<img class="logo" src="${logo}" alt="">` : `<div class="brand">${esc(c.name)}</div>`}
-    </div>
+    ${
+      logo
+        ? `<div class="logo-box"><img class="logo" src="${logo}" alt=""></div>`
+        : `<div class="brand">${esc(c.name)}</div>`
+    }
     <div class="contacts">${contactLines}</div>
   </div>
 
   <h1>${esc(heading)}</h1>
-  ${d.objectName ? `<div class="object">по объекту: <b>${esc(upper(stripObjectWord(d.objectName)))}</b></div>` : ""}
-  ${d.clientName ? `<div class="object">для: ${esc(cap(d.clientName))}</div>` : ""}
+  ${d.objectName ? `<div class="object">по объекту: <b>${esc(cap(stripObjectWord(d.objectName)))}</b></div>` : ""}
+  ${d.clientName ? `<div class="object">Заказчик: ${esc(cap(d.clientName))}</div>` : ""}
 
   <table>
     <thead><tr>

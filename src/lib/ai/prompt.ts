@@ -77,10 +77,35 @@ function normalizeItems(raw: unknown): ExtractedItem[] {
  * Основной формат — объект {client, items}; голый массив (старый формат) тоже
  * поддержан — тогда client = null.
  */
-function cleanLabel(v: unknown): string | null {
-  const raw = typeof v === "string" ? v.trim() : "";
-  // отсечь мусор ("null"/"none") и слишком длинные строки
-  return raw && raw.toLowerCase() !== "null" ? raw.slice(0, 120) : null;
+// Служебное слово, которое модель нередко затягивает в само значение:
+// «Объект Павлово» → «Павлово», «Заказчик василий» → «василий».
+// Требуем разделитель после слова, иначе «Сметана» распознали бы как ярлык.
+const LABELS = "для|объект[а-яё]*|заказчик[а-яё]*|клиент[а-яё]*|смета|название";
+const LABEL_PREFIX = new RegExp(`^\\s*(?:по\\s+)?(?:${LABELS})(?:\\s*[:\\-–—]\\s*|\\s+)`, "iu");
+// строка целиком состоит из ярлыка — значения нет («объект», «заказчик:»)
+const BARE_LABEL = new RegExp(`^\\s*(?:по\\s+)?(?:${LABELS})\\s*[:\\-–—]?\\s*$`, "iu");
+
+/**
+ * Чистит объект/заказчика из ответа модели: снимает служебные слова
+ * («объект», «заказчик», «для»), поднимает первую букву, режет мусор.
+ */
+export function cleanLabel(v: unknown): string | null {
+  let raw = typeof v === "string" ? v.trim() : "";
+  if (!raw || raw.toLowerCase() === "null") return null;
+
+  // ярлыков может быть несколько подряд: «для заказчика Иван»
+  for (let i = 0; i < 3; i++) {
+    const next = raw.replace(LABEL_PREFIX, "").trim();
+    if (next === raw) break;
+    raw = next;
+  }
+  // предлог, оставшийся после ярлыка: «объект на Павлово» → «Павлово»
+  raw = raw.replace(/^(?:на|в)\s+/iu, "").trim();
+  // остался только ярлык без значения — считаем, что не назван
+  if (!raw || BARE_LABEL.test(raw)) return null;
+
+  // «василий» → «Василий» (модель иногда отдаёт с маленькой)
+  return (raw.charAt(0).toUpperCase() + raw.slice(1)).slice(0, 120);
 }
 
 export function parseExtraction(content: string): Extraction {

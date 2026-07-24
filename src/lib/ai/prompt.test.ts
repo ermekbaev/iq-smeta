@@ -1,5 +1,39 @@
 import { describe, it, expect } from "vitest";
-import { parseExtraction } from "./prompt";
+import { cleanLabel, parseExtraction } from "./prompt";
+
+describe("cleanLabel — служебные слова не должны попадать в значение", () => {
+  it("снимает ярлык объекта/заказчика", () => {
+    expect(cleanLabel("Объект Павлово 15")).toBe("Павлово 15");
+    expect(cleanLabel("заказчик василий")).toBe("Василий");
+    expect(cleanLabel("Заказчик: ООО Ромашка")).toBe("ООО Ромашка");
+    expect(cleanLabel("для ИП Адилет")).toBe("ИП Адилет");
+    expect(cleanLabel("смета Павлово 2")).toBe("Павлово 2");
+  });
+
+  it("снимает предлог после ярлыка и несколько ярлыков подряд", () => {
+    expect(cleanLabel("объект на Павлово")).toBe("Павлово");
+    expect(cleanLabel("для заказчика Иван")).toBe("Иван");
+  });
+
+  it("поднимает первую букву (модель отдаёт с маленькой)", () => {
+    expect(cleanLabel("василий")).toBe("Василий");
+    expect(cleanLabel("павлово 15")).toBe("Павлово 15");
+  });
+
+  it("обычное название не калечит", () => {
+    expect(cleanLabel("Павлово 15")).toBe("Павлово 15");
+    expect(cleanLabel("ЖК в Кунцево")).toBe("ЖК в Кунцево");
+    // слово, лишь начинающееся как ярлык, — не ярлык (нет разделителя)
+    expect(cleanLabel("Сметана 5")).toBe("Сметана 5");
+  });
+
+  it("мусор → null", () => {
+    expect(cleanLabel("null")).toBeNull();
+    expect(cleanLabel("")).toBeNull();
+    expect(cleanLabel(undefined)).toBeNull();
+    expect(cleanLabel("объект")).toBeNull(); // только ярлык, значения нет
+  });
+});
 
 describe("parseExtraction", () => {
   it("парсит объект {object, client, items}", () => {
@@ -63,6 +97,14 @@ describe("parseExtraction", () => {
   it('мусорный client ("null"/пустой) → null', () => {
     expect(parseExtraction('{"client":"null","items":[]}').client).toBeNull();
     expect(parseExtraction('{"client":"  ","items":[]}').client).toBeNull();
+  });
+
+  it("ярлыки из ответа модели вычищаются (баг с «Заказчик василий»)", () => {
+    const r = parseExtraction(
+      '{"object":"Объект Павлова 15","client":"Заказчик василий","items":[{"name":"труба","qty":2,"unit":"м"}]}'
+    );
+    expect(r.object).toBe("Павлова 15");
+    expect(r.client).toBe("Василий");
   });
 
   it("невалидный ввод → пустой результат", () => {

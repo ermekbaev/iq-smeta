@@ -69,7 +69,45 @@ describe("estimateHtml — устойчивость к пустым реквиз
     expect(html).toContain("&nbsp;&nbsp;/&nbsp;&nbsp;Иванов И.И.");
     expect(html).toContain('class="stamp"');
     expect(html).toContain('class="sig"');
+    // лого в фиксированной рамке — одинаковый размер у всех компаний
+    expect(html).toContain('class="logo-box"');
     expect(html).toContain('class="logo"');
-    expect(html).toContain("по объекту: <b>ПАВЛОВО</b>");
+  });
+});
+
+describe("estimateHtml — правки заказчика по КП", () => {
+  const brand: CompanyBrand = { ...emptyBrand, name: "ЭкоГарден" };
+
+  it("объект: только первая буква заглавная, не капс", () => {
+    const html = estimateHtml({ ...base, objectName: "павлова 15", company: brand });
+    expect(html).toContain("по объекту: <b>Павлова 15</b>");
+    expect(html).not.toContain("ПАВЛОВА 15");
+  });
+
+  it("слово «объект» в начале названия не дублируется", () => {
+    const html = estimateHtml({ ...base, objectName: "Объект Павлова 15", company: brand });
+    expect(html).toContain("по объекту: <b>Павлова 15</b>");
+  });
+
+  it("вместо «для:» — «Заказчик:»", () => {
+    const html = estimateHtml({ ...base, clientName: "василий", company: brand });
+    expect(html).toContain("Заказчик: Василий");
+    expect(html).not.toContain("для: ");
+  });
+
+  it("контакты в своей рамке — длинный адрес переносится", () => {
+    const html = estimateHtml({
+      ...base,
+      company: {
+        ...brand,
+        contactLines: [
+          "ЭкоГарден",
+          "г. Москва, БЦ «Империал Парк», ул. Вишнёвая, д.9 корп.1, офис 218",
+          "+7 (495) 990-48-16",
+        ],
+      },
+    });
+    expect(html).toContain("max-width: 280px");
+    expect(html).toContain("Вишнёвая");
   });
 });
