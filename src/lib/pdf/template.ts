@@ -152,11 +152,11 @@ export function estimateHtml(d: EstimatePdfData): string {
   th.name { text-align: left; }
   td.c { text-align: center; white-space: nowrap; }
   td.r, th.r { text-align: right; white-space: nowrap; }
-  tr.group td { background: #eef2ff; font-weight: 700; }
+  tr.group td { background: #ededed; font-weight: 700; }
   tr.subtotal td { background: #fafafa; font-weight: 600; }
   tr.total td { font-weight: 700; }
   tr.total td.lbl { text-align: right; }
-  tr.grand td { font-size: 14px; background: #eef2ff; }
+  tr.grand td { font-size: 14px; background: #ededed; }
   .sign { position: relative; margin-top: 64px; font-size: 13px; min-height: 160px; }
   .sign .line { display: inline-block; position: relative; }
   .sign .sig { position: absolute; left: -6px; bottom: 8px; height: 60px; width: auto; object-fit: contain; }
