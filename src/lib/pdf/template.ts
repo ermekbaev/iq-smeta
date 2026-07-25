@@ -136,10 +136,10 @@ export function estimateHtml(d: EstimatePdfData): string {
   * { box-sizing: border-box; }
   body { font-family: 'DejaVu Sans', Arial, sans-serif; color: #111; font-size: 12px; margin: 28px; background: #fff; }
   .head { display: flex; justify-content: space-between; align-items: flex-start; gap: 24px; margin-bottom: 22px; }
-  /* Лого в фиксированной рамке: у всех компаний одинаковый размер независимо
-     от исходного файла (contain вписывает, пропорции не рвутся). */
-  .logo-box { width: 200px; height: 64px; flex: 0 0 200px; }
-  .logo { width: 100%; height: 100%; object-fit: contain; object-position: left center; }
+  /* Лого фиксированной ВЫСОТЫ — у всех компаний одинаковая высота в шапке
+     независимо от исходного файла; ширина по пропорции, но не шире лимита. */
+  .logo-box { flex: 0 0 auto; }
+  .logo { height: 72px; width: auto; max-width: 300px; object-fit: contain; object-position: left center; }
   .brand { font-size: 22px; font-weight: 700; }
   /* Контакты — своя рамка, длинный адрес переносится, а не тянет строку. */
   .contacts { text-align: right; font-size: 12px; line-height: 1.5; color: #222;

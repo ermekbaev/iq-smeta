@@ -8,6 +8,18 @@ import { getCompanyBrand } from "@/lib/brand/company";
 
 export const runtime = "nodejs";
 
+// Служебные разделы, которые не годятся в предмет КП.
+const GENERIC_CATEGORY = /^(прочее|работы|материалы|оборудование|услуги|доставка)$/i;
+
+/** Предмет КП из направлений сметы: «по устройству: полив, свет, газон». */
+function autoSubject(categories: string[]): string {
+  const uniq = [
+    ...new Set(categories.map((c) => c.trim()).filter((c) => c && !GENERIC_CATEGORY.test(c))),
+  ];
+  if (uniq.length === 0) return "";
+  return `по устройству: ${uniq.map((c) => c.toLowerCase()).join(", ")}`;
+}
+
 // GET /api/estimate/:id/pdf — фирменная смета в PDF.
 export async function GET(
   _req: Request,
@@ -27,6 +39,10 @@ export async function GET(
   // артикул берём из связанной позиции прайса (у ручных позиций его нет)
   const items = estimate.items.map((it) => ({ ...it, article: it.priceItem?.article ?? null }));
 
+  // Предмет КП: ручной («по организации системы автополива») или, если пуст,
+  // автоматически из направлений сметы: «по устройству: полив, свет, газон».
+  const subject = estimate.subject?.trim() || autoSubject(items.map((i) => i.category));
+
   const company = await getCompanyBrand(estimate.userId);
   const date = estimate.createdAt.toLocaleDateString("ru-RU");
 
@@ -35,7 +51,7 @@ export async function GET(
     date,
     title: estimate.title,
     objectName: estimate.objectName,
-    subject: estimate.subject,
+    subject,
     clientName: estimate.clientName,
     groups: groupByCategory(items),
     total: Number(estimate.total),
