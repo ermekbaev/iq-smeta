@@ -89,6 +89,16 @@ describe("estimateHtml — правки заказчика по КП", () => {
     expect(html).toContain("по объекту: <b>Павлова 15</b>");
   });
 
+  it("формулировка КП, попавшая в поле объекта, вычищается", () => {
+    const html = estimateHtml({
+      ...base,
+      objectName: "Коммерческое предложение на организацию системы освещения",
+      company: brand,
+    });
+    expect(html).not.toContain("по объекту: <b>Коммерческое предложение");
+    expect(html).toContain("Организацию системы освещения");
+  });
+
   it("вместо «для:» — «Заказчик:»", () => {
     const html = estimateHtml({ ...base, clientName: "василий", company: brand });
     expect(html).toContain("Заказчик: Василий");
