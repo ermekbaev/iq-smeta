@@ -159,7 +159,8 @@ export default function RecordPage() {
             unit: it.unit,
             price: typeof it.price === "number" && it.price > 0 ? it.price : 0,
             priceItemId: null,
-            category: activeCategory ?? "Прочее",
+            // || (не ??): пустую выбранную категорию тоже заменяем на «Прочее»
+            category: activeCategory || "Прочее",
             candidates: [],
             needsConfirm: false,
           })
@@ -203,7 +204,8 @@ export default function RecordPage() {
             price: hasSpokenPrice ? (spokenPrice as number) : b?.price ?? 0,
             priceItemId: b?.id ?? null,
             // ручная позиция при выбранной категории попадает в неё же
-            category: b?.category ?? activeCategory ?? "Прочее",
+            // || (не ??): пустые строки тоже фолбэчим на «Прочее»
+            category: b?.category || activeCategory || "Прочее",
             candidates: r.match.candidates,
             needsConfirm: hasSpokenPrice ? false : r.match.needsConfirm,
           };

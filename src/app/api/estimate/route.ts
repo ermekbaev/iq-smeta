@@ -12,7 +12,11 @@ const lineSchema = z.object({
   qty: z.number().positive(),
   unit: z.string().min(1),
   price: z.number().nonnegative(),
-  category: z.string().min(1).default("Прочее"),
+  // пустую/пробельную категорию не отвергаем, а нормализуем в «Прочее»
+  category: z
+    .string()
+    .optional()
+    .transform((c) => (c && c.trim() ? c.trim() : "Прочее")),
 });
 
 const schema = z.object({
@@ -33,7 +37,13 @@ export async function POST(req: Request) {
 
   const parsed = schema.safeParse(await req.json());
   if (!parsed.success) {
-    return NextResponse.json({ error: "Проверьте поля сметы" }, { status: 400 });
+    // покажем, какое поле не прошло, — иначе 400 немой и не отладить
+    const issue = parsed.error.issues[0];
+    const where = issue?.path.join(".") || "поля";
+    return NextResponse.json(
+      { error: `Проверьте поля сметы (${where}: ${issue?.message ?? "ошибка"})` },
+      { status: 400 }
+    );
   }
 
   const { id } = await createEstimate(userId, parsed.data);
