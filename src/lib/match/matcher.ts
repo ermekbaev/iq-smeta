@@ -13,9 +13,11 @@ import { expandWithSynonyms } from "./synonyms";
 export const CONFIDENCE_THRESHOLD = numEnv("MATCH_THRESHOLD", 0.6);
 
 // Вес семантики vs нечёткого сравнения. С реальными эмбеддингами семантика
-// сильнее (ловит разные формулировки), поэтому по умолчанию её вес выше.
-const W_SEMANTIC = numEnv("MATCH_W_SEMANTIC", 0.7);
-const W_FUZZY = numEnv("MATCH_W_FUZZY", 0.3);
+// сильнее (ловит синонимы/разные формулировки), нечёткое — вторичная страховка.
+// Важно: при синонимах слово намеренно другое («форсунка» vs «сопло»), поэтому
+// нечёткое по исходному слову ≈ 0 и не должно перевешивать семантику.
+const W_SEMANTIC = numEnv("MATCH_W_SEMANTIC", 0.8);
+const W_FUZZY = numEnv("MATCH_W_FUZZY", 0.2);
 
 function numEnv(name: string, def: number): number {
   const v = Number(process.env[name]);
@@ -82,9 +84,12 @@ export async function matchItem(
   // Если эмбеддинги недоступны (rate-limit/сбой провайдера) — не роняем весь
   // подбор, а возвращаем «нет совпадения» → позиция пойдёт на ручной ввод.
   let raw: Awaited<ReturnType<typeof searchSimilar>> = [];
+  // расширенный синонимами запрос («форсунка» → «форсунка сопло …») — нужен и
+  // для эмбеддинга, и для нечёткого сравнения (иначе синоним-слово не совпадёт)
+  let expanded = name;
   try {
     // расширяем запрос синонимами аккаунта перед эмбеддингом (в обе стороны)
-    const expanded = await expandWithSynonyms(userId, name);
+    expanded = await expandWithSynonyms(userId, name);
     const vector = await ai.embeddings.embed(expanded);
     raw = await searchSimilar(userId, vector, 5, category);
   } catch {
@@ -101,7 +106,9 @@ export async function matchItem(
   const candidates: Candidate[] = raw
     .map((c) => {
       const semantic = Math.max(0, 1 - c.distance); // косинус: distance 0 = идентично
-      const fuzzy = fuzzyScore(name, c.name);
+      // нечёткое по исходному слову ИЛИ по расширенному (с синонимами): «форсунка»
+      // само не совпадёт с «Сопло баблер», а «форсунка сопло …» — совпадёт
+      const fuzzy = Math.max(fuzzyScore(name, c.name), fuzzyScore(expanded, c.name));
       const score = (W_SEMANTIC * semantic + W_FUZZY * fuzzy) / (W_SEMANTIC + W_FUZZY);
       return {
         id: c.id,
