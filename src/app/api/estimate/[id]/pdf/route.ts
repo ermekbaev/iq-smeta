@@ -5,20 +5,9 @@ import { groupByCategory } from "@/lib/estimate/service";
 import { estimateHtml } from "@/lib/pdf/template";
 import { renderPdf } from "@/lib/pdf/render";
 import { getCompanyBrand } from "@/lib/brand/company";
+import { autoSubject } from "@/lib/pdf/subject";
 
 export const runtime = "nodejs";
-
-// Служебные разделы, которые не годятся в предмет КП.
-const GENERIC_CATEGORY = /^(прочее|работы|материалы|оборудование|услуги|доставка)$/i;
-
-/** Предмет КП из направлений сметы: «по устройству: полив, свет, газон». */
-function autoSubject(categories: string[]): string {
-  const uniq = [
-    ...new Set(categories.map((c) => c.trim()).filter((c) => c && !GENERIC_CATEGORY.test(c))),
-  ];
-  if (uniq.length === 0) return "";
-  return `по устройству: ${uniq.map((c) => c.toLowerCase()).join(", ")}`;
-}
 
 // GET /api/estimate/:id/pdf — фирменная смета в PDF.
 export async function GET(
