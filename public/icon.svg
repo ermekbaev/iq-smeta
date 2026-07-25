@@ -1,7 +1,8 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
-  <rect width="512" height="512" rx="96" fill="#111111"/>
-  <text x="50%" y="50%" dy="0.07em" text-anchor="middle" dominant-baseline="middle"
-    font-family="Arial, sans-serif" font-size="190" font-weight="700" fill="#ffffff">IQ</text>
-  <text x="50%" y="76%" text-anchor="middle"
-    font-family="Arial, sans-serif" font-size="58" font-weight="500" fill="#9ca3af">СМЕТА</text>
+  <rect width="512" height="512" rx="112" fill="#111111"/>
+  <!-- аутентичный значок «iq» из фирменного логотипа (белый на тёмном) -->
+  <g fill="#ffffff" transform="translate(88,88) scale(1.2774) translate(-312.03,-346.48)">
+    <path d="M443.55,346.48A131.52,131.52,0,1,0,575.07,478,131.52,131.52,0,0,0,443.55,346.48ZM395.88,522.56H371.75v-85.4h24.13Zm-11-87.53c-8,0-14.5-5.45-14.5-12.18s6.49-12.19,14.5-12.19,14.5,5.46,14.5,12.19S392.87,435,384.86,435ZM526.22,545H501.61V522.56H445.52c-26,0-38-12.21-38-34.61V468.68c0-25.65,13.54-34.25,38-34.25h45.59s35.11-1.6,35.11,26.19Z"/>
+    <path d="M479.05,455.53H458.13c-13.89,0-27.33-1.47-27.33,9.41v26.72c0,11.24,13.44,9.75,27.33,9.75h44.42V465.47C502.55,455.12,491.88,455.53,479.05,455.53Z"/>
+  </g>
 </svg>
