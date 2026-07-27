@@ -148,7 +148,9 @@ export function estimateHtml(d: EstimatePdfData): string {
   /* Контакты — своя рамка, длинный адрес переносится, а не тянет строку. */
   .contacts { text-align: right; font-size: 12px; line-height: 1.5; color: #222;
               max-width: 280px; flex: 0 1 280px; word-wrap: break-word; }
-  h1 { font-size: 15px; font-weight: 700; text-align: center; margin: 0 0 6px; }
+  h1 { font-size: 15px; font-weight: 700; text-align: center; margin: 0 0 4px; }
+  /* № и дата — идентификация документа и его актуальности */
+  .docmeta { text-align: center; font-size: 12px; color: #444; margin: 0 0 12px; }
   .object { text-align: center; font-size: 13px; margin: 0 0 16px; }
   table { width: 100%; border-collapse: collapse; }
   th, td { border: 1px solid #000; padding: 6px 8px; vertical-align: top; }
@@ -176,6 +178,7 @@ export function estimateHtml(d: EstimatePdfData): string {
   </div>
 
   <h1>${esc(heading)}</h1>
+  <div class="docmeta">№ ${esc(d.number)} от ${esc(d.date)}</div>
   ${d.objectName ? `<div class="object">по объекту: <b>${esc(cap(stripObjectWord(d.objectName)))}</b></div>` : ""}
   ${d.clientName ? `<div class="object">Заказчик: ${esc(cap(d.clientName))}</div>` : ""}
 

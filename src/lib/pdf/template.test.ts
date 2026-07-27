@@ -99,6 +99,11 @@ describe("estimateHtml — правки заказчика по КП", () => {
     expect(html).toContain("Организацию системы освещения");
   });
 
+  it("в теле КП есть номер и дата (идентификация актуальности)", () => {
+    const html = estimateHtml({ ...base, number: "A1B2C3", date: "25.07.2026", company: brand });
+    expect(html).toContain("№ A1B2C3 от 25.07.2026");
+  });
+
   it("вместо «для:» — «Заказчик:»", () => {
     const html = estimateHtml({ ...base, clientName: "василий", company: brand });
     expect(html).toContain("Заказчик: Василий");
