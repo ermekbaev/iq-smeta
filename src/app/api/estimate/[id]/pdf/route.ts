@@ -34,9 +34,10 @@ export async function GET(
 
   const company = await getCompanyBrand(estimate.userId);
   const date = estimate.createdAt.toLocaleDateString("ru-RU");
+  const number = estimate.id.slice(-6).toUpperCase();
 
   const html = estimateHtml({
-    number: estimate.id.slice(-6).toUpperCase(),
+    number,
     date,
     title: estimate.title,
     objectName: estimate.objectName,
@@ -49,8 +50,9 @@ export async function GET(
   });
 
   // Имя файла: IQsmeta_<объект>_<дата>.pdf
-  // Объект — название объекта (иначе заказчик, иначе название сметы).
-  const object = (estimate.objectName || estimate.clientName || estimate.title || "смета")
+  // Объект — название объекта, иначе заказчик; если ничего не названо — номер КП
+  // (а не «Смета»: дефолтный title давал бесполезное имя «IQsmeta_Смета_дата»).
+  const object = (estimate.objectName || estimate.clientName || `КП-${number}`)
     .replace(/[\/\\:*?"<>|\r\n]+/g, " ") // убрать недопустимые в имени файла
     .replace(/\s+/g, " ")
     .trim();
