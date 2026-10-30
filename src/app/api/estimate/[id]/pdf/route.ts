@@ -5,7 +5,7 @@ import { groupByCategory } from "@/lib/estimate/service";
 import { estimateHtml } from "@/lib/pdf/template";
 import { renderPdf } from "@/lib/pdf/render";
 import { getCompanyBrand } from "@/lib/brand/company";
-import { autoSubject } from "@/lib/pdf/subject";
+import { autoSubjectFromItems } from "@/lib/pdf/subject";
 
 export const runtime = "nodejs";
 
@@ -30,7 +30,7 @@ export async function GET(
 
   // Предмет КП: ручной («по организации системы автополива») или, если пуст,
   // автоматически из направлений сметы: «по устройству: полив, свет, газон».
-  const subject = estimate.subject?.trim() || autoSubject(items.map((i) => i.category));
+  const subject = estimate.subject?.trim() || autoSubjectFromItems(items);
 
   const company = await getCompanyBrand(estimate.userId);
   const date = estimate.createdAt.toLocaleDateString("ru-RU");

@@ -9,6 +9,8 @@ export const EXTRACT_SYSTEM_PROMPT = `Ты помощник сметчика. И
 2) заказчика — кому предназначена смета: «для ИП Адилет», «заказчик ООО Ромашка», «клиент Иван Петрович». Сохрани форму («ИП …», «ООО …»). Если не назван — null.
 3) список позиций (материалы, работы, оборудование, доставка).
 Объект и заказчик — это НЕ позиции и НЕ количество товара; в список позиций их НЕ добавляй.
+Вид работ в начале («КП по автополиву», «смета на освещение», «бери из дренажа») — это НЕ позиция и НЕ объект, пропусти его.
+Имена собственные пиши с заглавной буквы: имя, отчество, фамилию («Иван Петров»), названия населённых пунктов, улиц, посёлков, ЖК («деревня Дятловка», «ЖК Солнечный»); сокращения ИП, ООО, ЖК, КП, СНТ, ДНП — заглавными.
 Верни СТРОГО JSON-объект вида {"object": string|null, "client": string|null, "items": [{"name": string, "qty": number, "unit": string, "price": number|null}]}, без пояснений и без markdown.
 - name — краткое наименование позиции (без количества, единицы и цены)
 - qty — количество числом (если не названо — 1)
@@ -85,11 +87,47 @@ const LABEL_PREFIX = new RegExp(`^\\s*(?:по\\s+)?(?:${LABELS})(?:\\s*[:\\-–�
 // строка целиком состоит из ярлыка — значения нет («объект», «заказчик:»)
 const BARE_LABEL = new RegExp(`^\\s*(?:по\\s+)?(?:${LABELS})\\s*[:\\-–—]?\\s*$`, "iu");
 
+// Сокращения — всегда заглавными: «ип адилет» → «ИП Адилет», «жк солнечный» → «ЖК Солнечный»
+const ABBR = /^(ип|ооо|оао|зао|ао|пао|нко|жк|кп|снт|днп|тсн|ижс|днт)$/iu;
+// После этих слов идёт имя собственное: «деревня дятловка» → «деревня Дятловка»
+const PLACE = /^(деревн[яиеюй]|д|село|с|пос[её]л(?:ок|ке|ка)|пос|п|город|г|улиц[аеуы]|ул|проспект|пр|шоссе|массив|станиц[аеы]|хутор|жк|кп|снт|днп|тсн|днт)\.?$/iu;
+const upFirst = (w: string) => w.charAt(0).toUpperCase() + w.slice(1);
+
+/**
+ * Заглавные буквы по правилам, а не как модель отдала (Юрий 30.10: «то имя с большой,
+ * фамилия с маленькой»). Объект: первая буква, начало предложения, имя после «деревня»,
+ * «ЖК», «ул.» и т.п. Заказчик-человек (и ИП): каждое слово ФИО; юрлицо: первое слово названия.
+ */
+export function properCase(text: string, kind: "object" | "client"): string {
+  const words = text.split(/(\s+)/);
+  const legal = kind === "client" && /^(ооо|оао|зао|ао|пао|нко)$/iu.test(words[0] ?? "");
+  let sentenceStart = true;
+  let afterPlace = false;
+  let named = 0; // слов имени после юрлица
+  return words
+    .map((w) => {
+      if (/^\s+$/.test(w) || !w) return w;
+      const bare = w.replace(/^[«"(]+|[»"),.:;!?]+$/gu, "");
+      let out = w;
+      if (ABBR.test(bare)) out = w.replace(bare, bare.toUpperCase());
+      else if (/^[а-яёa-z]/u.test(bare)) {
+        const name = bare.length > 2 && /^[а-яё-]+$/iu.test(bare);
+        if (sentenceStart || (afterPlace && name)) out = upFirst(w);
+        else if (kind === "client" && name && (!legal || named === 0)) out = upFirst(w);
+      }
+      if (kind === "client" && legal && !ABBR.test(bare)) named++;
+      afterPlace = PLACE.test(bare) || (afterPlace && bare.length <= 2); // «деревня в Дятловке» — предлог пропускаем
+      sentenceStart = /[.!?]$/.test(w);
+      return out;
+    })
+    .join("");
+}
+
 /**
  * Чистит объект/заказчика из ответа модели: снимает служебные слова
  * («объект», «заказчик», «для»), поднимает первую букву, режет мусор.
  */
-export function cleanLabel(v: unknown): string | null {
+export function cleanLabel(v: unknown, kind: "object" | "client" = "object"): string | null {
   let raw = typeof v === "string" ? v.trim() : "";
   if (!raw || raw.toLowerCase() === "null") return null;
 
@@ -104,8 +142,8 @@ export function cleanLabel(v: unknown): string | null {
   // остался только ярлык без значения — считаем, что не назван
   if (!raw || BARE_LABEL.test(raw)) return null;
 
-  // «василий» → «Василий» (модель иногда отдаёт с маленькой)
-  return (raw.charAt(0).toUpperCase() + raw.slice(1)).slice(0, 120);
+  // «василий петров» → «Василий Петров», «деревня дятловка» → «Деревня Дятловка»
+  return properCase(raw, kind).slice(0, 120);
 }
 
 export function parseExtraction(content: string): Extraction {
@@ -116,8 +154,8 @@ export function parseExtraction(content: string): Extraction {
   if (parsed && typeof parsed === "object") {
     const o = parsed as Record<string, unknown>;
     return {
-      object: cleanLabel(o.object),
-      client: cleanLabel(o.client),
+      object: cleanLabel(o.object, "object"),
+      client: cleanLabel(o.client, "client"),
       items: normalizeItems(o.items),
     };
   }

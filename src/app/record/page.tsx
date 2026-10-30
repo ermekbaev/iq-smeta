@@ -7,6 +7,7 @@ import { WavRecorder } from "@/lib/audio/wav-recorder";
 import BottomNav from "@/components/BottomNav";
 import UploadButton from "@/components/UploadButton";
 import { detectCategoryCommand } from "@/lib/match/category";
+import { serviceInHead } from "@/lib/services";
 
 interface Candidate {
   id: string;
@@ -31,6 +32,16 @@ interface Line {
 
 type Stage = "record" | "draft";
 
+interface ServiceOption {
+  id: string;
+  label: string;
+  subject: string;
+  spoken: string[];
+  count: number;
+  /** Разделы прайса этой услуги + общие (доставка, расходники). */
+  categories: string[];
+}
+
 export default function RecordPage() {
   const router = useRouter();
   const [stage, setStage] = useState<Stage>("record");
@@ -46,6 +57,12 @@ export default function RecordPage() {
   // категории прайса: сужают подбор («бери из дренажа» или выбор вручную)
   const [categories, setCategories] = useState<{ category: string; count: number }[]>([]);
   const [category, setCategory] = useState("");
+  // услуга (Автополив, Освещение…) — понятный список вместо разделов поставщика (Юрий 30.10):
+  // подбор только из её разделов, предмет КП — её формулировка
+  const [services, setServices] = useState<ServiceOption[]>([]);
+  const [service, setService] = useState("");
+  // предмет, подставленный из услуги: ручной ввод не затираем
+  const autoSubjectRef = useRef("");
   // чистый голос: позиции берём как надиктовано, без подбора по прайсу
   const [pureVoice, setPureVoice] = useState(false);
 
@@ -56,7 +73,19 @@ export default function RecordPage() {
       .then((r) => (r.ok ? r.json() : []))
       .then(setCategories)
       .catch(() => {});
+    fetch("/api/services")
+      .then((r) => (r.ok ? r.json() : []))
+      .then(setServices)
+      .catch(() => {});
   }, []);
+
+  function chooseService(id: string) {
+    setService(id);
+    const s = services.find((x) => x.id === id);
+    const next = s ? `на ${s.subject}` : "";
+    setSubject((prev) => (!prev || prev === autoSubjectRef.current ? next : prev));
+    autoSubjectRef.current = next;
+  }
 
   const money = (n: number) =>
     n.toLocaleString("ru-RU", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -112,15 +141,24 @@ export default function RecordPage() {
     }
     setError(null);
 
-    // голосовая команда в начале диктовки («бери из дренажа, 10 труб…»)
-    // перебивает выбранное вручную: человек сказал явно — значит, так и надо
-    const cmd = detectCategoryCommand(
-      sourceText,
-      categories.map((c) => c.category)
-    );
-    const activeCategory = cmd.category ?? category;
+    // голосовая команда в начале диктовки («бери из дренажа, 10 труб…» или «КП по автополиву…»)
+    // перебивает выбранное вручную: человек сказал явно — значит, так и надо.
+    // Есть услуги — команда выбирает услугу, иначе (необычный прайс) — раздел, как раньше
+    const spoken = services.flatMap((s) => [s.label, ...s.spoken].map((w) => [w, s.id] as const));
+    const svcCmd = services.length ? detectCategoryCommand(sourceText, spoken.map(([w]) => w)) : null;
+    const svcFromCmd = svcCmd?.category ? spoken.find(([w]) => w === svcCmd.category)?.[1] : undefined;
+    const svcInHead = services.length ? serviceInHead(sourceText) : null;
+    const svcId = svcFromCmd ?? (svcInHead && services.some((s) => s.id === svcInHead.id) ? svcInHead.id : "") ?? "";
+    if (svcId && svcId !== service) chooseService(svcId);
+    const activeService = services.find((s) => s.id === (svcId || service)) ?? null;
+    const cmd = svcFromCmd
+      ? { category: svcCmd!.category, text: svcCmd!.text }
+      : services.length
+        ? { category: null, text: sourceText }
+        : detectCategoryCommand(sourceText, categories.map((c) => c.category));
+    const activeCategory = activeService ? activeService.label : (cmd.category ?? category);
     if (cmd.category) {
-      setCategory(cmd.category);
+      if (!svcFromCmd) setCategory(cmd.category);
       // команду убираем и из самого текста: иначе при повторной сборке она
       // распозналась бы снова и сбросить категорию было бы невозможно
       setText(cmd.text);
@@ -177,7 +215,11 @@ export default function RecordPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           items: exData.items,
-          ...(activeCategory ? { category: activeCategory } : {}),
+          ...(activeService
+            ? { categories: activeService.categories }
+            : activeCategory
+              ? { category: activeCategory }
+              : {}),
         }),
       });
       const mtData = await mt.json();
@@ -342,7 +384,29 @@ export default function RecordPage() {
             </label>
           </div>
 
-          {!pureVoice && categories.length > 0 && (
+          {!pureVoice && services.length > 0 && (
+            <section className="space-y-2 rounded-xl border bg-white p-5">
+              <h2 className="text-sm font-medium text-gray-500">Услуга</h2>
+              <select
+                value={service}
+                onChange={(e) => chooseService(e.target.value)}
+                className="w-full rounded border border-gray-300 px-3 py-2 text-sm"
+              >
+                <option value="">Все услуги</option>
+                {services.map((s) => (
+                  <option key={s.id} value={s.id}>
+                    {s.label}
+                  </option>
+                ))}
+              </select>
+              <p className="text-xs text-gray-500">
+                Подбор только из этой услуги, заголовок КП — по ней. Можно голосом: начните
+                со слов <b>«КП по автополиву…»</b>.
+              </p>
+            </section>
+          )}
+
+          {!pureVoice && services.length === 0 && categories.length > 0 && (
             <section className="space-y-2 rounded-xl border bg-white p-5">
               <h2 className="text-sm font-medium text-gray-500">Категория подбора</h2>
               <select
@@ -449,15 +513,17 @@ export default function RecordPage() {
           </section>
 
           <section className="space-y-3 rounded-xl border bg-white p-5">
-            {category && (
+            {(service || category) && (
               <p className="flex flex-wrap items-center gap-2 text-xs text-gray-500">
                 <span className="rounded-full bg-gray-100 px-2 py-0.5 text-gray-700">
-                  Подбор из категории: <b>{category}</b>
+                  {service ? "Услуга" : "Подбор из категории"}:{" "}
+                  <b>{services.find((s) => s.id === service)?.label ?? category}</b>
                 </span>
                 <button
                   type="button"
                   onClick={() => {
                     setCategory("");
+                    chooseService("");
                     setStage("record");
                   }}
                   className="text-gray-500 underline hover:text-gray-900"

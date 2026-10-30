@@ -34,10 +34,20 @@ export async function searchSimilar(
   userId: string,
   vector: number[],
   limit = 5,
-  category?: string // сузить подбор до раздела («бери из дренажа»)
+  category?: string | string[] // сузить подбор до раздела («бери из дренажа») или разделов услуги
 ): Promise<MatchCandidate[]> {
   const vec = toSqlVector(vector);
-  if (category) {
+  if (Array.isArray(category) && category.length) {
+    return prisma.$queryRaw<MatchCandidate[]>`
+      SELECT id, name, unit, price::text AS price, category::text AS category,
+             embedding <=> ${vec}::vector AS distance
+      FROM price_items
+      WHERE user_id = ${userId} AND embedding IS NOT NULL AND category = ANY(${category}::text[])
+      ORDER BY embedding <=> ${vec}::vector
+      LIMIT ${limit}
+    `;
+  }
+  if (typeof category === "string" && category) {
     return prisma.$queryRaw<MatchCandidate[]>`
       SELECT id, name, unit, price::text AS price, category::text AS category,
              embedding <=> ${vec}::vector AS distance

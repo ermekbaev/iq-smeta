@@ -27,6 +27,15 @@ describe("cleanLabel — служебные слова не должны поп�
     expect(cleanLabel("Сметана 5")).toBe("Сметана 5");
   });
 
+  it("заглавные буквы по правилам (Юрий 30.10)", () => {
+    expect(cleanLabel("деревня дятловка. земельный участок 472", "object")).toBe("Деревня Дятловка. Земельный участок 472");
+    expect(cleanLabel("жк солнечный", "object")).toBe("ЖК Солнечный");
+    expect(cleanLabel("кп никольские озера", "object")).toBe("КП Никольские озера");
+    expect(cleanLabel("иван петров", "client")).toBe("Иван Петров");
+    expect(cleanLabel("ип мохов юрий", "client")).toBe("ИП Мохов Юрий");
+    expect(cleanLabel("ооо зелёный сад", "client")).toBe("ООО Зелёный сад");
+  });
+
   it("мусор → null", () => {
     expect(cleanLabel("null")).toBeNull();
     expect(cleanLabel("")).toBeNull();
