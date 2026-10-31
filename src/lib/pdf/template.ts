@@ -4,6 +4,7 @@
 
 import { EstimateGroup } from "@/lib/estimate/service";
 import { CompanyBrand } from "@/lib/brand/company";
+import type { ServiceSection } from "./by-service";
 
 export interface EstimatePdfData {
   number: string;
@@ -16,6 +17,8 @@ export interface EstimatePdfData {
   /** Заказчик — строка «Заказчик:». */
   clientName?: string | null;
   groups: EstimateGroup[];
+  /** Смета по нескольким услугам — разделы по услугам с подытогами (иначе null). */
+  byService?: ServiceSection[] | null;
   total: number;
   /** Логотип КП (data URL) — если у сметы свой; иначе берётся дефолтный из настроек. */
   logo?: string | null;
@@ -94,9 +97,20 @@ export function estimateHtml(d: EstimatePdfData): string {
   const equipmentSum = equipGroups.reduce((s, g) => s + g.subtotal, 0);
   const worksSum = workGroups.reduce((s, g) => s + g.subtotal, 0);
 
-  const rows =
-    section(equipGroups, "Итого за оборудование и материалы", equipmentSum) +
-    section(workGroups, "Итого за работы", worksSum);
+  // несколько услуг — по услугам: заголовок услуги, её разделы и позиции, подытог услуги
+  const rows = d.byService
+    ? d.byService
+        .map(
+          (s) => `
+      <tr class="service"><td colspan="5">${esc(s.label)}</td></tr>
+      ${[...s.groups.filter((g) => !g.isWork), ...s.groups.filter((g) => g.isWork)]
+        .map((g) => `<tr class="group"><td colspan="5">${esc(cap(g.label))}</td></tr>${renderLines(g.lines)}`)
+        .join("")}
+      <tr class="subtotal"><td class="r" colspan="4">Итого: ${esc(s.label.toLowerCase())}</td><td class="r">${money(s.subtotal)} ₽</td></tr>`
+        )
+        .join("")
+    : section(equipGroups, "Итого за оборудование и материалы", equipmentSum) +
+      section(workGroups, "Итого за работы", worksSum);
 
   // Заголовок КП: «Коммерческое предложение» + предмет («по организации системы …»).
   // Если предмет уже начинается с этих слов — не дублируем.
@@ -160,6 +174,7 @@ export function estimateHtml(d: EstimatePdfData): string {
   td.r, th.r { text-align: right; white-space: nowrap; }
   tr.group td { background: #ededed; font-weight: 700; }
   tr.subtotal td { background: #fafafa; font-weight: 600; }
+  tr.service td { padding-top: 14px; font-size: 14px; font-weight: 700; border-bottom: 2px solid #222; }
   tr.total td { font-weight: 700; }
   tr.total td.lbl { text-align: right; }
   tr.grand td { font-size: 14px; background: #ededed; }

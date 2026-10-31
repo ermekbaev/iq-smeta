@@ -6,6 +6,7 @@ import { estimateHtml } from "@/lib/pdf/template";
 import { renderPdf } from "@/lib/pdf/render";
 import { getCompanyBrand } from "@/lib/brand/company";
 import { autoSubjectFromItems } from "@/lib/pdf/subject";
+import { sectionsByService } from "@/lib/pdf/by-service";
 
 export const runtime = "nodejs";
 
@@ -36,6 +37,7 @@ export async function GET(
   const date = estimate.createdAt.toLocaleDateString("ru-RU");
   const number = estimate.id.slice(-6).toUpperCase();
 
+  const groups = groupByCategory(items);
   const html = estimateHtml({
     number,
     date,
@@ -43,7 +45,8 @@ export async function GET(
     objectName: estimate.objectName,
     subject,
     clientName: estimate.clientName,
-    groups: groupByCategory(items),
+    groups,
+    byService: sectionsByService(groups),
     total: Number(estimate.total),
     logo: estimate.logo,
     company,

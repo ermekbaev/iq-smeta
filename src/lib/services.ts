@@ -148,8 +148,9 @@ export function serviceOfCategory(category: string, itemNames: string[] = []): S
       bestVotes = v;
     }
   }
-  // хотя бы треть позиций раздела должна говорить об услуге, иначе раздел общий
-  if (!best || bestVotes * 3 < itemNames.length) return null;
+  // позиции разных услуг («Работы»: монтаж дождевателя и монтаж светильника) — раздел общий;
+  // и хотя бы треть позиций должна говорить об услуге
+  if (!best || votes.size > 1 || bestVotes * 3 < itemNames.length) return null;
   return SERVICES.find((s) => s.id === best) ?? null;
 }
 
