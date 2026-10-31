@@ -44,6 +44,8 @@ export interface EmbeddingsProvider {
   embed(text: string): Promise<number[]>;
   /** Пакетное получение векторов (для загрузки больших прайсов). */
   embedBatch(texts: string[]): Promise<number[][]>;
+  /** Вектор поискового ЗАПРОСА (короткая фраза из речи), если у провайдера отдельная модель. */
+  embedQuery?(text: string): Promise<number[]>;
 }
 
 export interface AiProvider {

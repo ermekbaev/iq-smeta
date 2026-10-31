@@ -87,7 +87,7 @@ export async function matchItem(
   try {
     // расширяем запрос синонимами аккаунта перед эмбеддингом (в обе стороны)
     expanded = await expandWithSynonyms(userId, name);
-    const vector = await ai.embeddings.embed(expanded);
+    const vector = await (ai.embeddings.embedQuery ?? ai.embeddings.embed).call(ai.embeddings, expanded);
     raw = await searchSimilar(userId, vector, 5, category);
   } catch {
     if (learned) return { query: name, best: learned, candidates: [learned], confidence: 1, needsConfirm: false, source: "alias" };
