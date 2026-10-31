@@ -46,8 +46,10 @@ export async function importPrice(userId: string, rows: ParsedRow[]): Promise<Im
     });
     if (existing) updated++;
     else created++;
-    // эмбеддинг по «артикул + название» — чтобы работал и поиск по коду
-    saved.push({ id: item.id, text: [row.article, row.name].filter(Boolean).join(" ") });
+    // эмбеддинг по «артикул + название + раздел поставщика» — поиск по коду и по виду
+    // («спот», «столбик», «грунтовый» часто есть только в разделе, а не в названии)
+    const section = row.section && row.section !== row.category ? row.section : null;
+    saved.push({ id: item.id, text: [row.article, row.name, section].filter(Boolean).join(" — ") });
   }
 
   // 2) эмбеддинги пачкой (PLAN 3.2). Если провайдер упал — позиции уже сохранены;

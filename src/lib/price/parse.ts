@@ -18,6 +18,10 @@ export interface ParsedRow {
   price: number; // РРЦ (розница)
   cost: number | null; // ОПТ (закупка) — для маржи
   category: string;
+  /** Раздел поставщика над позицией («Светильники акцентного освещения (споты)») — даже при
+   *  «направлении»: в названии его нет (у LS Lighting в «Наименовании» одни характеристики),
+   *  а подбору нужны «спот», «столбик», «грунтовый» (31.10). */
+  section: string | null;
 }
 
 export interface ParseResult {
@@ -126,6 +130,7 @@ function parseSheet(
   let skipped = 0;
   let total = 0;
   let currentCategory = "Прочее";
+  let currentSection: string | null = null;
 
   for (let r = hdr.headerRow + 1; r < matrix.length; r++) {
     const row = matrix[r];
@@ -145,8 +150,9 @@ function parseSheet(
         // но и категорией не делаем; показываем в «пропущено»
         total++;
         skipped++;
-      } else if (!direction && !isFormLabel(name)) {
-        currentCategory = name; // настоящий заголовок раздела → категория
+      } else if (!isFormLabel(name)) {
+        currentSection = name;
+        if (!direction) currentCategory = name; // настоящий заголовок раздела → категория
       }
       continue;
     }
@@ -178,6 +184,7 @@ function parseSheet(
       price,
       cost: cost && cost > 0 ? cost : null,
       category,
+      section: flat ? null : currentSection,
     });
   }
   return { skipped, total };

@@ -7,6 +7,7 @@ import { ai } from "@/lib/ai";
 import { searchSimilar } from "./index";
 import { fuzzyScore, normalizeText } from "./fuzzy";
 import { expandWithSynonyms } from "./synonyms";
+import { isWorkCategory } from "@/lib/estimate/service";
 
 // Настройки подбора — через env, чтобы тюнить без правок кода (PLAN 3.2).
 // Порог автоподбора: выше — берём молча, ниже — спрашиваем подтверждение.
@@ -18,6 +19,8 @@ export const CONFIDENCE_THRESHOLD = numEnv("MATCH_THRESHOLD", 0.6);
 // нечёткое по исходному слову ≈ 0 и не должно перевешивать семантику.
 const W_SEMANTIC = numEnv("MATCH_W_SEMANTIC", 0.8);
 const W_FUZZY = numEnv("MATCH_W_FUZZY", 0.2);
+// штраф, если просили материал, а нашлась работа (или наоборот)
+const WORK_MISMATCH = 0.85;
 
 function numEnv(name: string, def: number): number {
   const v = Number(process.env[name]);
@@ -62,25 +65,17 @@ export async function matchItem(
       },
     },
   });
-  if (alias && inScope(alias.priceItem)) {
-    const p = alias.priceItem;
-    const best: Candidate = {
-      id: p.id,
-      name: p.name,
-      unit: p.unit,
-      price: Number(p.price),
-      category: p.category,
-      score: 1,
-    };
-    return {
-      query: name,
-      best,
-      candidates: [best],
-      confidence: 1,
-      needsConfirm: false,
-      source: "alias",
-    };
-  }
+  const learned: Candidate | null =
+    alias && inScope(alias.priceItem)
+      ? {
+          id: alias.priceItem.id,
+          name: alias.priceItem.name,
+          unit: alias.priceItem.unit,
+          price: Number(alias.priceItem.price),
+          category: alias.priceItem.category,
+          score: 1,
+        }
+      : null;
 
   // Слой 2+3 — семантика + нечёткое.
   // Если эмбеддинги недоступны (rate-limit/сбой провайдера) — не роняем весь
@@ -95,6 +90,7 @@ export async function matchItem(
     const vector = await ai.embeddings.embed(expanded);
     raw = await searchSimilar(userId, vector, 5, category);
   } catch {
+    if (learned) return { query: name, best: learned, candidates: [learned], confidence: 1, needsConfirm: false, source: "alias" };
     return {
       query: name,
       best: null,
@@ -104,6 +100,8 @@ export async function matchItem(
       source: "none",
     };
   }
+  // работа ↔ материал: «трансформатор» без «монтажа» не должен уходить в «Монтаж трансформатора», и наоборот
+  const askWork = isWorkCategory(name);
 
   const candidates: Candidate[] = raw
     .map((c) => {
@@ -111,7 +109,8 @@ export async function matchItem(
       // нечёткое по исходному слову ИЛИ по расширенному (с синонимами): «форсунка»
       // само не совпадёт с «Сопло баблер», а «форсунка сопло …» — совпадёт
       const fuzzy = Math.max(fuzzyScore(name, c.name), fuzzyScore(expanded, c.name));
-      const score = (W_SEMANTIC * semantic + W_FUZZY * fuzzy) / (W_SEMANTIC + W_FUZZY);
+      const base = (W_SEMANTIC * semantic + W_FUZZY * fuzzy) / (W_SEMANTIC + W_FUZZY);
+      const score = isWorkCategory(c.name) === askWork ? base : base * WORK_MISMATCH;
       return {
         id: c.id,
         name: c.name,
@@ -123,6 +122,11 @@ export async function matchItem(
     })
     .sort((a, b) => b.score - a.score);
 
+  // выученное — первым, но остальные варианты рядом: ошибочное сопоставление можно перевыбрать
+  if (learned) {
+    const rest = candidates.filter((c) => c.id !== learned.id);
+    return { query: name, best: learned, candidates: [learned, ...rest], confidence: 1, needsConfirm: false, source: "alias" };
+  }
   const best = candidates[0] ?? null;
   const confidence = best?.score ?? 0;
 
