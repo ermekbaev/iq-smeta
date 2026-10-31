@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { requireUser } from "@/lib/auth-helpers";
 import { matchItem } from "@/lib/match/matcher";
+import { prisma } from "@/lib/prisma";
+import { scopeIds, serviceById } from "@/lib/services";
 
 export const runtime = "nodejs";
 
@@ -17,8 +19,8 @@ const schema = z.object({
     .min(1),
   // сузить подбор до раздела прайса («бери из дренажа» или выбор вручную)
   category: z.string().min(1).max(120).optional(),
-  // выбранная услуга — несколько разделов прайса сразу (Автополив = все разделы полива + общие)
-  categories: z.array(z.string().min(1).max(120)).max(300).optional(),
+  // выбранная услуга (Автополив, Освещение…) — подбор только из её позиций и общего
+  service: z.string().min(1).max(40).optional(),
 });
 
 // POST /api/match — позиции из речи → подбор по прайсу с кандидатами (PLAN 3.2).
@@ -32,8 +34,12 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Некорректные позиции" }, { status: 400 });
   }
 
-  const { items, category, categories } = parsed.data;
-  const scope = categories?.length ? categories : category;
+  const { items, category, service } = parsed.data;
+  let scope: string | { ids: string[] } | undefined = category;
+  if (service && serviceById(service)) {
+    const all = await prisma.priceItem.findMany({ where: { userId }, select: { id: true, category: true, name: true } });
+    scope = { ids: scopeIds(all, service) };
+  }
   const results = await Promise.all(
     items.map(async (it) => {
       const m = await matchItem(userId, it.name, scope);

@@ -38,8 +38,6 @@ interface ServiceOption {
   subject: string;
   spoken: string[];
   count: number;
-  /** Разделы прайса этой услуги + общие (доставка, расходники). */
-  categories: string[];
 }
 
 export default function RecordPage() {
@@ -216,7 +214,7 @@ export default function RecordPage() {
         body: JSON.stringify({
           items: exData.items,
           ...(activeService
-            ? { categories: activeService.categories }
+            ? { service: activeService.id }
             : activeCategory
               ? { category: activeCategory }
               : {}),

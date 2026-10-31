@@ -45,9 +45,10 @@ export interface MatchResult {
 export async function matchItem(
   userId: string,
   name: string,
-  category?: string | string[] // сузить подбор до раздела прайса или разделов услуги
+  category?: string | { ids: string[] } // сузить подбор до раздела прайса или позиций услуги
 ): Promise<MatchResult> {
-  const inScope = (c: string) => !category || (Array.isArray(category) ? category.includes(c) : c === category);
+  const inScope = (p: { id: string; category: string }) =>
+    !category || (typeof category === "string" ? p.category === category : category.ids.includes(p.id));
   const normalized = normalizeText(name);
 
   // Слой 1 — выученное сопоставление (в рамках аккаунта).
@@ -61,7 +62,7 @@ export async function matchItem(
       },
     },
   });
-  if (alias && inScope(alias.priceItem.category)) {
+  if (alias && inScope(alias.priceItem)) {
     const p = alias.priceItem;
     const best: Candidate = {
       id: p.id,

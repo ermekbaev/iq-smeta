@@ -22,14 +22,14 @@ export const SERVICES: Service[] = [
     label: "Автополив",
     subject: "устройство системы автоматического полива",
     spoken: ["автополив", "полив", "орошение"],
-    stems: ["полив", "автополив", "дождев", "форсун", "сопл", "капельн", "ороше", "ниппел", "пнд", "irritec", "hunter", "rain bird", "rainbird", "toro", "rain", "компрессионн", "датчик дожд", "электромагнитн", "клапан"],
+    stems: ["полив", "автополив", "дождев", "форсун", "сопл", "капельн", "ороше", "ниппел", "пнд", "irritec", "hunter", "rain bird", "rainbird", "toro", "rain", "компрессионн", "датчик дожд", "электромагнитн", "клапан", "насос", "прессконтрол", "емкост", "poelsan", "aquario", "седелк", "кран шаров", "водоисточ", "насосн станц"],
   },
   {
     id: "lighting",
     label: "Освещение",
     subject: "устройство системы ландшафтного освещения",
     spoken: ["освещение", "свет", "подсветка"],
-    stems: ["освещ", "свет", "подсвет", "прожект", "спот", "ламп", "led", "неон", "arlight", "swg", "трансформатор", "блок питан", "драйвер", "торшер"],
+    stems: ["освещ", "свет", "подсвет", "прожект", "спот", "ламп", "led", "неон", "arlight", "swg", "трансформатор", "блок питан", "драйвер", "торшер", "вольт", "электрокабел", "кабель силов", "щит", "розеточн", "линз", "электропитан", "труба кабельн"],
   },
   {
     id: "fog",
@@ -105,6 +105,10 @@ export const SERVICES: Service[] = [
 
 export const GENERAL_SUBJECT = "комплекс работ по благоустройству";
 
+// при равенстве узкая услуга сильнее: «насос дренажный» — дренаж, а не полив
+const NARROW = ["fog", "drainage", "storm"];
+const CLASSIFY_ORDER = [...SERVICES.filter((s) => NARROW.includes(s.id)), ...SERVICES.filter((s) => !NARROW.includes(s.id))];
+
 const norm = (s: string) => s.toLowerCase().replace(/ё/g, "е");
 
 /** Сколько ключевых слов услуги встречается в тексте (по началам слов). */
@@ -117,7 +121,7 @@ function hits(text: string, s: Service): number {
 export function serviceOfText(text: string): Service | null {
   let best: Service | null = null;
   let bestHits = 0;
-  for (const s of SERVICES) {
+  for (const s of CLASSIFY_ORDER) {
     const h = hits(text, s);
     if (h > bestHits) {
       best = s;
@@ -148,9 +152,10 @@ export function serviceOfCategory(category: string, itemNames: string[] = []): S
       bestVotes = v;
     }
   }
-  // позиции разных услуг («Работы»: монтаж дождевателя и монтаж светильника) — раздел общий;
-  // и хотя бы треть позиций должна говорить об услуге
-  if (!best || votes.size > 1 || bestVotes * 3 < itemNames.length) return null;
+  // раздел целиком за услугой, только если узнаваемые позиции почти все про неё (≥80%)
+  // и их хотя бы треть: «Работы» с монтажом дождевателя и светильника — общий раздел
+  const known = [...votes.values()].reduce((a, v) => a + v, 0);
+  if (!best || bestVotes * 5 < known * 4 || known * 3 < itemNames.length) return null;
   return SERVICES.find((s) => s.id === best) ?? null;
 }
 
@@ -166,6 +171,34 @@ export function mapCategories(items: { category: string; name: string }[]): Map<
 }
 
 export const serviceById = (id: string | null | undefined) => SERVICES.find((s) => s.id === id) ?? null;
+
+/**
+ * Позиции прайса, из которых подбирать при выбранной услуге. Раздел услуги — целиком;
+ * в общем разделе — позиции этой услуги по названию и общее без услуги (песок, доставка),
+ * а позиции чужих услуг («Прочее»: бетон, мощение) — нет.
+ */
+export function scopeIds(items: { id: string; category: string; name: string }[], serviceId: string): string[] {
+  const map = mapCategories(items);
+  return items
+    .filter((it) => {
+      const cat = map.get(it.category);
+      if (cat) return cat.id === serviceId;
+      const own = serviceOfText(it.name);
+      return !own || own.id === serviceId;
+    })
+    .map((it) => it.id);
+}
+
+/** Сколько позиций относится к услуге явно (раздел или название) — для списка услуг. */
+export function serviceCounts(items: { category: string; name: string }[]): Map<string, number> {
+  const map = mapCategories(items);
+  const out = new Map<string, number>();
+  for (const it of items) {
+    const s = map.get(it.category) ?? serviceOfText(it.name);
+    if (s) out.set(s.id, (out.get(s.id) ?? 0) + 1);
+  }
+  return out;
+}
 
 /** Предмет КП по услугам сметы: одна — её формулировка, две — через «и», больше — комплекс. */
 export function subjectFor(services: (Service | null)[]): string {

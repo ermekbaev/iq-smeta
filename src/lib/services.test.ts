@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { mapCategories, serviceInHead, serviceOfCategory, subjectFor } from "./services";
+import { mapCategories, scopeIds, serviceInHead, serviceOfCategory, subjectFor } from "./services";
 import { autoSubjectFromItems } from "./pdf/subject";
 
 describe("услуги — раздел поставщика раскладывается по понятной услуге", () => {
@@ -42,5 +42,18 @@ describe("услуги — раздел поставщика раскладыв�
     expect(serviceInHead("КП по автополиву, десять дождевателей")?.id).toBe("irrigation");
     expect(serviceInHead("смета на освещение: пять светильников")?.id).toBe("lighting");
     expect(serviceInHead("десять дождевателей и смета на полив потом")).toBeNull();
+  });
+
+  it("подбор по услуге: своё и общее, без позиций чужих услуг", () => {
+    const items = [
+      { id: "1", category: "Дождеватели (HUNTER)", name: "Дождеватель PGP" },
+      { id: "2", category: "Светильники грунтовые", name: "Светильник SWG" },
+      { id: "3", category: "Прочее", name: "Песок карьерный" },
+      { id: "4", category: "Прочее", name: "Бетон М300" },
+      { id: "5", category: "Прочее", name: "Брусчатка серая" },
+      { id: "6", category: "Соединения", name: "Муфта 25*1 POELSAN" },
+    ];
+    expect(scopeIds(items, "irrigation")).toEqual(["1", "3", "6"]);
+    expect(scopeIds(items, "lighting")).toEqual(["2", "3"]);
   });
 });
