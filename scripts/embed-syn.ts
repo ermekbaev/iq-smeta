@@ -19,7 +19,7 @@ const cachePath = process.argv[2];
 const cache: Record<string, number[]> = JSON.parse(readFileSync(cachePath, "utf8"));
 const items: { text: string; name: string }[] = JSON.parse(readFileSync(cachePath.replace(/\.json$/, ".items.json"), "utf8"));
 export const GROUPS = JSON.parse(readFileSync(process.argv[3], "utf8")) as string[][];
-const Q = ["форсунка", "насос", "спот", "столбик", "настенный светильник", "колоски", "блок питания", "светильник грунтовый", "монтаж светильника", "трансформатор на 300 ватт", "кабель", "датчик дождя", "электромагнитный клапан", "прожектор", "подводный светильник", "гирлянда"];
+const Q = (process.argv[4] ?? "").split("|").filter(Boolean);
 (async () => {
   for (const q of Q) {
     const ex = applySynonyms(GROUPS, q);
