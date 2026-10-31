@@ -7,7 +7,7 @@
 // Запрашиваем размерность из EMBEDDING_DIM, чтобы совпадать с vector(N) в БД.
 
 import { AsrProvider, EmbeddingsProvider, LlmProvider, Extraction, EMBEDDING_DIM } from "./types";
-import { EXTRACT_SYSTEM_PROMPT, parseExtraction } from "./prompt";
+import { extractPrompt, parseExtraction } from "./prompt";
 import { chunk, withRetry } from "./util";
 
 // Размер пачки для batchEmbedContents. На free-tier Gemini лимит эмбеддингов —
@@ -53,9 +53,9 @@ async function gen(
 }
 
 export const geminiLlm: LlmProvider = {
-  async extractItems(text: string): Promise<Extraction> {
+  async extractItems(text: string, vocabulary?: string[]): Promise<Extraction> {
     return parseExtraction(
-      await gen([{ text }], { system: EXTRACT_SYSTEM_PROMPT, jsonOut: true })
+      await gen([{ text }], { system: extractPrompt(vocabulary), jsonOut: true })
     );
   },
 };

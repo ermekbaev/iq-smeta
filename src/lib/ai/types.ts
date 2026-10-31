@@ -35,7 +35,8 @@ export interface Extraction {
 
 export interface LlmProvider {
   /** Свободный текст диктовки → заказчик + структурированный список позиций. */
-  extractItems(text: string): Promise<Extraction>;
+  /** vocabulary — слова из прайса и синонимов компании: по ним нейросеть исправляет ослышки. */
+  extractItems(text: string, vocabulary?: string[]): Promise<Extraction>;
 }
 
 export interface EmbeddingsProvider {

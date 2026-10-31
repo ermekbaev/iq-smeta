@@ -3,6 +3,7 @@ import { z } from "zod";
 import { requireUser } from "@/lib/auth-helpers";
 import { rateLimit } from "@/lib/rate-limit";
 import { ai } from "@/lib/ai";
+import { companyVocabulary } from "@/lib/ai/vocabulary";
 
 export const runtime = "nodejs";
 
@@ -28,7 +29,9 @@ export async function POST(req: Request) {
   }
 
   try {
-    const { object, client, items } = await ai.llm.extractItems(parsed.data.text);
+    // словарь компании — по нему нейросеть исправляет ослышки («хантер» → Hunter)
+    const vocabulary = await companyVocabulary(userId).catch(() => []);
+    const { object, client, items } = await ai.llm.extractItems(parsed.data.text, vocabulary);
     if (items.length === 0) {
       // PLAN 3.4a — внятная ошибка вместо молчания
       return NextResponse.json(

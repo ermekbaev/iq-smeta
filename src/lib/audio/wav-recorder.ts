@@ -15,7 +15,11 @@ export class WavRecorder {
   private srcRate = 48000;
 
   async start(): Promise<void> {
-    this.stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    // шумоподавление, эхо и автогромкость — явно: по умолчанию на части телефонов (iOS) выключены,
+    // а мастер диктует на улице (Юрий 31.10: «из-за шума плохо слышно»)
+    this.stream = await navigator.mediaDevices.getUserMedia({
+      audio: { noiseSuppression: true, echoCancellation: true, autoGainControl: true, channelCount: 1 },
+    });
     this.ctx = new AudioContext();
     // На Android/мобильных AudioContext стартует в "suspended" — без resume()
     // onaudioprocess не срабатывает и запись выходит пустой.

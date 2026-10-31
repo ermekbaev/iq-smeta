@@ -8,7 +8,7 @@
 
 import { randomUUID } from "node:crypto";
 import { EmbeddingsProvider, LlmProvider, Extraction } from "./types";
-import { EXTRACT_SYSTEM_PROMPT, parseExtraction } from "./prompt";
+import { extractPrompt, parseExtraction } from "./prompt";
 import { chunk, withRetry } from "./util";
 
 export const GIGACHAT_EMBEDDING_DIM = 1024;
@@ -58,12 +58,12 @@ async function api(path: string, body: unknown): Promise<unknown> {
 }
 
 export const gigachatLlm: LlmProvider = {
-  async extractItems(text: string): Promise<Extraction> {
+  async extractItems(text: string, vocabulary?: string[]): Promise<Extraction> {
     const data = (await api("/chat/completions", {
       model: process.env.GIGACHAT_MODEL || "GigaChat",
       temperature: 0,
       messages: [
-        { role: "system", content: EXTRACT_SYSTEM_PROMPT },
+        { role: "system", content: extractPrompt(vocabulary) },
         { role: "user", content: text },
       ],
     })) as { choices?: { message?: { content?: string } }[] };

@@ -10,7 +10,7 @@
 //    сменить EMBEDDING_DIM на 256 И vector(256) в схеме + миграция (см. guard в index.ts).
 
 import { AsrProvider, EmbeddingsProvider, LlmProvider, Extraction } from "./types";
-import { EXTRACT_SYSTEM_PROMPT, parseExtraction } from "./prompt";
+import { extractPrompt, parseExtraction } from "./prompt";
 import { withRetry } from "./util";
 
 export const YANDEX_EMBEDDING_DIM = 256;
@@ -101,8 +101,8 @@ async function yandexComplete(system: string, user: string, maxTokens = 2000): P
 }
 
 export const yandexLlm: LlmProvider = {
-  async extractItems(text: string): Promise<Extraction> {
-    return parseExtraction(await yandexComplete(EXTRACT_SYSTEM_PROMPT, text));
+  async extractItems(text: string, vocabulary?: string[]): Promise<Extraction> {
+    return parseExtraction(await yandexComplete(extractPrompt(vocabulary), text));
   },
 };
 

@@ -67,6 +67,12 @@ export default function RecordPage() {
   const [pureVoice, setPureVoice] = useState(false);
 
   const recorderRef = useRef<WavRecorder | null>(null);
+  // переговорить одну строку (шум, ослышка) — без повтора всей диктовки (Юрий 31.10)
+  const [lineRec, setLineRec] = useState<number | null>(null);
+  const [lineBusy, setLineBusy] = useState<number | null>(null);
+  const lineRecorderRef = useRef<WavRecorder | null>(null);
+  // где подбирали последнюю диктовку — так же подбираем и переговорённую строку
+  const scopeRef = useRef<{ service?: string; category?: string }>({});
 
   useEffect(() => {
     fetch("/api/categories")
@@ -210,6 +216,7 @@ export default function RecordPage() {
         return;
       }
 
+      scopeRef.current = activeService ? { service: activeService.id } : activeCategory ? { category: activeCategory } : {};
       setBusy("Подбираю по прайсу…");
       const mt = await fetch("/api/match", {
         method: "POST",
@@ -283,6 +290,61 @@ export default function RecordPage() {
         category: c.category,
         needsConfirm: false,
       });
+  }
+
+  async function startLineRec(i: number) {
+    setError(null);
+    try {
+      const rec = new WavRecorder();
+      await rec.start();
+      lineRecorderRef.current = rec;
+      setLineRec(i);
+    } catch {
+      setError("Нет доступа к микрофону. Разрешите запись в браузере.");
+    }
+  }
+
+  /** Строку переговорили: распознать, выделить позицию, подобрать — и заменить только её. */
+  async function stopLineRec(i: number) {
+    setLineRec(null);
+    setLineBusy(i);
+    try {
+      const blob = await lineRecorderRef.current?.stop();
+      if (!blob) throw new Error("Запись не получилась, попробуйте ещё раз.");
+      const fd = new FormData();
+      fd.append("audio", blob, "line.wav");
+      const asr = await (await fetch("/api/asr", { method: "POST", body: fd })).json();
+      if (!asr.text?.trim()) throw new Error(asr.error ?? "Не расслышал — скажите ещё раз, ближе к телефону.");
+      const ex = await fetch("/api/extract", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ text: asr.text }) });
+      const exData = await ex.json();
+      const it = exData.items?.[0] as { name: string; qty: number; unit: string; price?: number } | undefined;
+      if (!ex.ok || !it) throw new Error(exData.error ?? "Не понял позицию — скажите ещё раз.");
+      const spoken = typeof it.price === "number" && it.price > 0 ? it.price : undefined;
+      if (pureVoice || spoken) {
+        update(i, { spokenText: it.name, name: it.name, qty: it.qty, unit: it.unit, price: spoken ?? 0, priceItemId: null, autoId: null, candidates: [], needsConfirm: false });
+        return;
+      }
+      const mt = await (await fetch("/api/match", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ items: [it], ...scopeRef.current }) })).json();
+      const r = mt.results?.[0];
+      if (!r) throw new Error(mt.error ?? "Сбой подбора.");
+      const b: Candidate | null = r.match.needsConfirm ? null : r.match.best;
+      update(i, {
+        spokenText: it.name,
+        name: b?.name ?? it.name,
+        qty: it.qty,
+        unit: b?.unit ?? it.unit,
+        price: b?.price ?? 0,
+        priceItemId: b?.id ?? null,
+        autoId: b?.id ?? null,
+        category: b?.category || lines[i]?.category || "Прочее",
+        candidates: r.match.candidates,
+        needsConfirm: r.match.needsConfirm,
+      });
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Не получилось, попробуйте ещё раз.");
+    } finally {
+      setLineBusy(null);
+    }
   }
 
   function removeLine(i: number) {
@@ -375,6 +437,12 @@ export default function RecordPage() {
                 ? "Идёт запись… надиктуйте материалы и работы."
                 : "Нажмите и продиктуйте позиции, либо введите текст ниже."}
             </p>
+            {!recording && (
+              <p className="text-xs text-gray-400">
+                На улице: телефон ближе ко рту, спиной к ветру; короткие фразы с паузой, количество — до
+                названия («десять дождевателей»).
+              </p>
+            )}
             <label className="flex items-center gap-2 text-sm text-gray-600">
               <input
                 type="checkbox"
@@ -537,7 +605,8 @@ export default function RecordPage() {
               </p>
             )}
             <p className="text-xs text-gray-500">
-              Жёлтым отмечены позиции с низкой уверенностью подбора — проверьте выбор.
+              Жёлтым отмечены позиции с низкой уверенностью подбора — проверьте выбор или нажмите
+              «🎤 переговорить» и скажите только эту позицию.
             </p>
             {lines.map((l, i) => (
               <div
@@ -546,8 +615,23 @@ export default function RecordPage() {
                   l.needsConfirm ? "border-yellow-300 bg-yellow-50" : "border-gray-200"
                 }`}
               >
-                <div className="mb-2 text-xs text-gray-500">
-                  Из речи: «{l.spokenText}»
+                <div className="mb-2 flex items-center justify-between gap-2 text-xs text-gray-500">
+                  <span className="min-w-0 truncate">Из речи: «{l.spokenText}»</span>
+                  <button
+                    type="button"
+                    disabled={lineBusy !== null || (lineRec !== null && lineRec !== i) || recording}
+                    onClick={() => (lineRec === i ? stopLineRec(i) : startLineRec(i))}
+                    title="Переговорить эту позицию"
+                    className={`shrink-0 rounded-full px-2.5 py-1 disabled:opacity-40 ${
+                      lineRec === i
+                        ? "bg-red-600 text-white"
+                        : l.needsConfirm
+                          ? "bg-yellow-200 text-gray-900 hover:bg-yellow-300"
+                          : "text-gray-500 hover:bg-gray-100"
+                    }`}
+                  >
+                    {lineRec === i ? "■ готово" : lineBusy === i ? "…" : "🎤 переговорить"}
+                  </button>
                 </div>
                 <label className="block space-y-1">
                   <span className="text-[11px] text-gray-400">Позиция</span>
