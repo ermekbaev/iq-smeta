@@ -106,8 +106,8 @@ export const yandexLlm: LlmProvider = {
   },
 };
 
-// У Яндекса пара моделей: text-search-doc — для позиций прайса, text-search-query — для
-// поисковых фраз. Векторы совместимы; запросной моделью короткое «спот» понимается лучше (31.10)
+// text-search-doc — и для позиций, и для фраз: запросная модель (text-search-query) в сравнении
+// 31.10 на прайсах Юрия не дала выигрыша и занижала уверенность
 async function yandexEmbed(text: string, model: "text-search-doc" | "text-search-query"): Promise<number[]> {
   const { apiKey, folderId } = cfg();
   return withRetry(async () => {
@@ -129,7 +129,6 @@ async function yandexEmbed(text: string, model: "text-search-doc" | "text-search
 export const yandexEmbeddings: EmbeddingsProvider = {
   dimension: YANDEX_EMBEDDING_DIM,
   embed: (text: string) => yandexEmbed(text, "text-search-doc"),
-  embedQuery: (text: string) => yandexEmbed(text, "text-search-query"),
   // У Яндекса низкая квота «запросов/сек» на эмбеддинги — параллель по 4 её
   // превышала (429 на больших прайсах). Идём последовательно с шагом-паузой
   // (~1 запрос/сек), withRetry остаётся страховкой на редкие 429.

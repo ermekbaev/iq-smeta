@@ -20,7 +20,7 @@ export const CONFIDENCE_THRESHOLD = numEnv("MATCH_THRESHOLD", 0.6);
 const W_SEMANTIC = numEnv("MATCH_W_SEMANTIC", 0.8);
 const W_FUZZY = numEnv("MATCH_W_FUZZY", 0.2);
 // штраф, если просили материал, а нашлась работа (или наоборот)
-const WORK_MISMATCH = 0.85;
+const WORK_MISMATCH = 0.8;
 
 function numEnv(name: string, def: number): number {
   const v = Number(process.env[name]);
@@ -87,7 +87,9 @@ export async function matchItem(
   try {
     // расширяем запрос синонимами аккаунта перед эмбеддингом (в обе стороны)
     expanded = await expandWithSynonyms(userId, name);
-    const vector = await (ai.embeddings.embedQuery ?? ai.embeddings.embed).call(ai.embeddings, expanded);
+    // запросной моделью (text-search-query) не лучше: сравнение 31.10 на 18 фразах — те же промахи,
+    // а уверенность ниже порога почти у всего. Короткие слова мастера («спот») решают синонимы
+    const vector = await ai.embeddings.embed(expanded);
     raw = await searchSimilar(userId, vector, 5, category);
   } catch {
     if (learned) return { query: name, best: learned, candidates: [learned], confidence: 1, needsConfirm: false, source: "alias" };
