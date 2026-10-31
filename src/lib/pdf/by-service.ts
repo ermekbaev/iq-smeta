@@ -7,6 +7,8 @@ import { SERVICES, serviceOfCategory, serviceOfText } from "@/lib/services";
 
 export interface ServiceSection {
   label: string;
+  /** Как услугу называют — чтобы не повторять раздел-тёзку подзаголовком. */
+  spoken: string[];
   groups: EstimateGroup[];
   subtotal: number;
 }
@@ -39,11 +41,11 @@ export function sectionsByService(groups: EstimateGroup[]): ServiceSection[] | n
   if (named.length < 2) return null;
   const sections: ServiceSection[] = named.map((s) => {
     const gs = byService.get(s.id)!;
-    return { label: s.label, groups: gs, subtotal: round2(gs.reduce((a, g) => a + g.subtotal, 0)) };
+    return { label: s.label, spoken: s.spoken, groups: gs, subtotal: round2(gs.reduce((a, g) => a + g.subtotal, 0)) };
   });
   const general = byService.get("");
   if (general?.length) {
-    sections.push({ label: "Общее", groups: general, subtotal: round2(general.reduce((a, g) => a + g.subtotal, 0)) });
+    sections.push({ label: "Общее", spoken: ["общее"], groups: general, subtotal: round2(general.reduce((a, g) => a + g.subtotal, 0)) });
   }
   return sections;
 }

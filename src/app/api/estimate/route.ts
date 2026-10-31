@@ -8,6 +8,7 @@ export const runtime = "nodejs";
 const lineSchema = z.object({
   spokenText: z.string().optional(),
   priceItemId: z.string().nullable().optional(),
+  learn: z.boolean().optional(),
   name: z.string().min(1),
   qty: z.number().positive(),
   unit: z.string().min(1),

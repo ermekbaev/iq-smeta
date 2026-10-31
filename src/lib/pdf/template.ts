@@ -104,7 +104,8 @@ export function estimateHtml(d: EstimatePdfData): string {
           (s) => `
       <tr class="service"><td colspan="5">${esc(s.label)}</td></tr>
       ${[...s.groups.filter((g) => !g.isWork), ...s.groups.filter((g) => g.isWork)]
-        .map((g) => `<tr class="group"><td colspan="5">${esc(cap(g.label))}</td></tr>${renderLines(g.lines)}`)
+        // подзаголовок раздела, совпадающий с услугой («Освещение» в «Освещении», «Полив» в «Автополиве»), не повторяем
+        .map((g) => `${s.spoken.includes(g.label.trim().toLowerCase()) || g.label.trim().toLowerCase() === s.label.toLowerCase() ? "" : `<tr class="group"><td colspan="5">${esc(cap(g.label))}</td></tr>`}${renderLines(g.lines)}`)
         .join("")}
       <tr class="subtotal"><td class="r" colspan="4">Итого: ${esc(s.label.toLowerCase())}</td><td class="r">${money(s.subtotal)} ₽</td></tr>`
         )

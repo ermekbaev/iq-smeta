@@ -25,6 +25,8 @@ interface Line {
   unit: string;
   price: number;
   priceItemId: string | null;
+  /** Что подобрала программа сама — запоминаем только ручную правку (отличие от этого). */
+  autoId: string | null;
   category: string;
   candidates: Candidate[];
   needsConfirm: boolean;
@@ -195,6 +197,7 @@ export default function RecordPage() {
             unit: it.unit,
             price: typeof it.price === "number" && it.price > 0 ? it.price : 0,
             priceItemId: null,
+            autoId: null,
             // || (не ??): пустую выбранную категорию тоже заменяем на «Прочее»
             category: activeCategory || "Прочее",
             candidates: [],
@@ -243,6 +246,7 @@ export default function RecordPage() {
             unit: b?.unit ?? r.input.unit,
             price: hasSpokenPrice ? (spokenPrice as number) : b?.price ?? 0,
             priceItemId: b?.id ?? null,
+            autoId: b?.id ?? null,
             // ручная позиция при выбранной категории попадает в неё же
             // || (не ??): пустые строки тоже фолбэчим на «Прочее»
             category: b?.category || activeCategory || "Прочее",
@@ -312,6 +316,7 @@ export default function RecordPage() {
           lines: lines.map((l) => ({
             spokenText: l.spokenText,
             priceItemId: l.priceItemId,
+            learn: !!l.priceItemId && l.priceItemId !== l.autoId,
             name: l.name,
             qty: l.qty,
             unit: l.unit,

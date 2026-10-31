@@ -10,6 +10,8 @@ export interface DraftLine {
   spokenText?: string;
   /** Подобранная позиция прайса; null — заведена вручную. */
   priceItemId?: string | null;
+  /** Человек сам выбрал позицию (поправил подбор) — только такое запоминаем. */
+  learn?: boolean;
   name: string;
   qty: number;
   unit: string;
@@ -68,10 +70,12 @@ export async function createEstimate(
       select: { id: true },
     });
 
-    // Обучение: сказанный текст → выбранная позиция. «Последняя правка побеждает».
+    // Обучение: сказанный текст → позиция, которую человек выбрал САМ. «Последняя правка побеждает».
+    // Раньше запоминался и автоподбор: кривая догадка, сохранённая без правки, закреплялась
+    // навсегда с уверенностью 100% («светильник грунтовой» → «монтаж подводного», 31.10)
     for (const { line } of items) {
       const priceItemId = ownPriceId(line.priceItemId);
-      if (priceItemId && line.spokenText) {
+      if (priceItemId && line.spokenText && line.learn) {
         const spoken = normalizeText(line.spokenText);
         if (spoken) {
           await tx.alias.upsert({
