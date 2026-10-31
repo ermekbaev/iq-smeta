@@ -62,13 +62,21 @@ function stripObjectWord(s: string): string {
   return t;
 }
 
+/** Название строки КП: у части поставщиков (LS Lighting) в названии одни характеристики,
+ *  а модель — в артикуле; тогда ставим артикул впереди («PACO-S — Источник света…»). */
+function lineName(l: { name: string; article?: string | null }): string {
+  const name = cap(l.name);
+  const art = (l.article ?? "").trim();
+  return art && !name.toLowerCase().includes(art.toLowerCase()) ? `${art} — ${name}` : name;
+}
+
 export function estimateHtml(d: EstimatePdfData): string {
   const renderLines = (lines: EstimateGroup["lines"]) =>
     lines
       .map(
         (l) => `
         <tr>
-          <td>${esc(cap(l.name))}</td>
+          <td>${esc(lineName(l))}</td>
           <td class="c">${money(l.qty)}</td>
           <td class="c">${esc(l.unit)}</td>
           <td class="r">${money(l.price)}</td>
